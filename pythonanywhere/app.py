@@ -4,13 +4,15 @@ Zeta Network - Serveur Web PythonAnywhere
 Interface web pour le réseau social P2P décentralisé
 """
 
-from flask import Flask, render_template, jsonify, request
 import os
 import json
 from datetime import datetime
+from flask import Flask, render_template, jsonify
 
+# Créer l'application Flask
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zeta-network-dev-key-change-in-production')
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Configuration - Relais publics
 RELAYS = [
@@ -47,7 +49,7 @@ def network_info():
 
 @app.route('/api/stats')
 def stats():
-    """API - Statistiques (fictives pour l'UX)"""
+    """API - Statistiques"""
     return jsonify({
         'active_peers': 42,
         'total_posts': 1289,
@@ -58,7 +60,11 @@ def stats():
 @app.route('/health')
 def health():
     """Health check"""
-    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.utcnow().isoformat(),
+        'service': 'zeta-network-web'
+    })
 
 @app.errorhandler(404)
 def not_found(e):
@@ -68,8 +74,11 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     """Gestion 500"""
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({
+        'error': 'Internal server error',
+        'message': str(e)
+    }), 500
 
+# Pour le développement local uniquement
 if __name__ == '__main__':
-    # Pour le développement local
     app.run(host='0.0.0.0', port=5000, debug=True)
