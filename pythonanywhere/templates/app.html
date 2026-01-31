@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeta Network • App</title>
+    <meta name="description" content="Réseau social P2P dans votre navigateur">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ζ</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ζ Zeta Network</div>
+            <p class="tagline">Réseau social décentralisé • 100% P2P</p>
+            
+            <div class="status-bar" id="status">
+                <div class="spinner"></div>
+                <span>Initialisation du nœud P2P...</span>
+            </div>
+            
+            <div class="network-info" id="networkInfo" style="display:none">
+                <div class="network-item">
+                    <span class="icon">🆔</span>
+                    <span>Votre ID : <strong id="peerIdShort">...</strong></span>
+                </div>
+                <div class="network-item">
+                    <span class="icon">👥</span>
+                    <span><strong id="peersCount">0</strong> pairs connectés</span>
+                </div>
+                <div class="network-item">
+                    <span class="icon">📡</span>
+                    <span><strong id="postsCount">0</strong> posts</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="app" id="app" style="display:none">
+            <div class="compose">
+                <input type="text" id="authorName" class="name-input" placeholder="Votre nom (local uniquement)" maxlength="24">
+                <textarea id="postContent" placeholder="Partagez quelque chose..."></textarea>
+                <div class="actions">
+                    <button class="btn" id="publishBtn" disabled>📤 Publier</button>
+                    <div class="char-count" id="charCount">0/280</div>
+                </div>
+            </div>
+
+            <div class="feed" id="feed">
+                <!-- Posts apparaîtront ici -->
+            </div>
+
+            <div class="peers">
+                <div class="peers-title">Pairs connectés</div>
+                <div class="peers-list" id="peers">
+                    <div class="peer-badge">En attente...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fallback" id="fallback" style="display:none">
+            <div class="fallback-icon">⚠️</div>
+            <h2>Connexion P2P impossible</h2>
+            <p class="fallback-text">
+                Votre navigateur ou réseau bloque les connexions peer-to-peer.<br>
+                Essayez avec un autre navigateur ou depuis un réseau différent.
+            </p>
+            <button class="btn" onclick="location.reload()">🔄 Réessayer</button>
+        </div>
+
+        <div class="footer">
+            <p>🔒 Vos données restent sur votre appareil • Pas de tracking</p>
+            <p>
+                <a href="https://github.com/CTHE0/zeta-network" target="_blank">Code source</a>
+                • 
+                <a href="/">Accueil</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            topic: '/zeta2/social/v1',
+            maxPostLength: 280,
+            peerTimeout: 60000,
+            heartbeatInterval: 30000,
+            bootstrapRelays: {{ relays|safe }}
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/ipfs-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
