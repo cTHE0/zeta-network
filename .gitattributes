@@ -1,0 +1,13 @@
+# Normaliser les sauts de ligne
+* text=auto eol=lf
+
+# Fichiers texte spécifiques
+*.rs text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.sh text eol=lf
+
+# Binaire
+*.zip binary
+*.png binary
+*.jpg binary
