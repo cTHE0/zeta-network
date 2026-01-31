@@ -1,7 +1,4 @@
 #!/bin/bash
-# Installation Zeta Network Relay - Version finale avec casse GitHub corrigée
-# Usage: curl -fsSL https://zetanetwork.org/static/install-relay.sh | sudo bash
-
 set -e
 
 RED='\033[0;31m'
@@ -11,62 +8,83 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║           🚀 Installation Zeta Network Relay              ║${NC}"
+echo -e "${BLUE}║      🔧 Installation Zeta Network Relay (CORRIGÉ)         ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 
-if [ "$EUID" -ne 0 ]; then 
-    echo -e "${RED}❌ Nécessite sudo${NC}"
+# 1. Dépendances
+echo -e "${BLUE}📦 Installation dépendances...${NC}"
+apt-get update > /dev/null 2>&1 || true
+DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential libssl-dev pkg-config > /dev/null 2>&1 || true
+
+# 2. Rust
+if ! command -v cargo &> /dev/null; then
+    echo -e "${BLUE}⚙️  Installation Rust...${NC}"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal > /dev/null 2>&1
+    source "/root/.cargo/env" 2>/dev/null || source "$HOME/.cargo/env"
+fi
+
+# 3. Installation PROPRE (supprimer tout ancien résidu)
+INSTALL_DIR="/opt/zeta-relay"
+echo -e "${BLUE}🧹 Nettoyage ancienne installation...${NC}"
+rm -rf "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
+
+# 4. Cloner DANS un sous-dossier temporaire pour éviter la pollution
+echo -e "${BLUE}📥 Clonage dépôt GitHub (cTHE0)...${NC}"
+cd "$INSTALL_DIR"
+git clone https://github.com/cTHE0/zeta-network.git zeta-src > /dev/null 2>&1 || {
+    echo -e "${YELLOW}⚠️  Tentative avec proxy...${NC}"
+    git clone https://ghproxy.com/https://github.com/cTHE0/zeta-network.git zeta-src > /dev/null 2>&1 || {
+        echo -e "${RED}❌ Échec clonage GitHub${NC}"
+        exit 1
+    }
+}
+
+# 5. COPIER SEULEMENT le dossier rust-node (critique !)
+echo -e "${BLUE}📋 Extraction dossier rust-node...${NC}"
+cp -r zeta-src/rust-node .
+rm -rf zeta-src  # Nettoyer le dépôt complet
+
+# 6. Vérification CRITIQUE du Cargo.toml
+cd "$INSTALL_DIR/rust-node"
+echo -e "${BLUE}🔍 Vérification Cargo.toml...${NC}"
+
+if [ ! -f Cargo.toml ]; then
+    echo -e "${RED}❌ ERREUR: Cargo.toml introuvable dans $(pwd)${NC}"
+    ls -la
     exit 1
 fi
 
-# Dépendances
-apt-get update > /dev/null 2>&1 || true
-apt-get install -y curl wget git build-essential libssl-dev pkg-config > /dev/null 2>&1 || true
-
-# Rust
-if ! command -v cargo &> /dev/null; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal > /dev/null 2>&1
-    source "/root/.cargo/env"
+# Détecter BOM UTF-8 ou caractères invalides
+if head -c 3 Cargo.toml | od -An -tx1 | grep -q "ef bb bf"; then
+    echo -e "${YELLOW}⚠️  BOM UTF-8 détecté - nettoyage...${NC}"
+    tail -c +4 Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
 fi
 
-# Installation propre
-INSTALL_DIR="/opt/zeta-relay"
-rm -rf "$INSTALL_DIR"
-mkdir -p "$INSTALL_DIR"
-cd "$INSTALL_DIR"
-
-# Méthode 1 : git clone avec casse CORRECTE (cTHE0)
-if git clone https://github.com/cTHE0/zeta-network.git . 2>/dev/null; then
-    echo -e "${GREEN}✓ Dépôt cloné depuis github.com/cTHE0/zeta-network${NC}"
-    cd rust-node || exit 1
-    
-# Méthode 2 : fallback fichier par fichier (avec casse CORRECTE)
-else
-    echo -e "${YELLOW}⚠️  Git indisponible - téléchargement direct${NC}"
-    
-    curl -fsSL "https://raw.githubusercontent.com/cTHE0/zeta-network/main/rust-node/Cargo.toml" -o Cargo.toml
-    curl -fsSL "https://raw.githubusercontent.com/cTHE0/zeta-network/main/rust-node/main.rs" -o main.rs
-    curl -fsSL "https://raw.githubusercontent.com/cTHE0/zeta-network/main/rust-node/web_server.rs" -o web_server.rs
-    curl -fsSL "https://raw.githubusercontent.com/cTHE0/zeta-network/main/rust-node/bootstrap.txt" -o bootstrap.txt 2>/dev/null || echo "" > bootstrap.txt
-    
-    # Vérification critique
-    if [ ! -s Cargo.toml ] || ! grep -q "package" Cargo.toml; then
-        echo -e "${RED}❌ Échec téléchargement Cargo.toml${NC}"
-        echo "Contenu reçu:"
-        head -20 Cargo.toml || echo "(vide)"
-        exit 1
-    fi
-    echo -e "${GREEN}✓ Fichiers téléchargés avec succès${NC}"
+# Vérifier format TOML valide
+if ! grep -q "^\[package\]" Cargo.toml 2>/dev/null; then
+    echo -e "${RED}❌ ERREUR: Cargo.toml invalide${NC}"
+    echo "Premières lignes:"
+    head -10 Cargo.toml
+    echo ""
+    echo "Hex dump (premiers 64 octets):"
+    head -c 64 Cargo.toml | od -An -tx1
+    exit 1
 fi
 
-# Build
-echo -e "${BLUE}🔨 Compilation...${NC}"
+echo -e "${GREEN}✅ Cargo.toml valide${NC}"
+
+# 7. Compilation depuis le bon dossier
+echo -e "${BLUE}🔨 Compilation (5-10 min)...${NC}"
 cargo build --release --quiet || {
     echo -e "${RED}❌ Échec compilation${NC}"
+    echo "Erreur détaillée:"
+    cargo build --release 2>&1 | tail -20
     exit 1
 }
 
-# Service
+# 8. Service systemd avec WorkingDirectory EXACT
+echo -e "${BLUE}⚙️  Configuration systemd...${NC}"
 cat > /etc/systemd/system/zeta-relay.service <<EOF
 [Unit]
 Description=Zeta Network Relay
@@ -75,31 +93,33 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=$INSTALL_DIR/rust-node
-ExecStart=$INSTALL_DIR/rust-node/target/release/zeta-network --relay --name "Relay-\$(hostname)" --web-port 3030
+WorkingDirectory=/opt/zeta-relay/rust-node
+ExecStart=/opt/zeta-relay/rust-node/target/release/zeta-network --relay --name "Relay-\$(hostname)" --web-port 3030
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable zeta-relay
+systemctl enable zeta-relay 2>/dev/null
 systemctl start zeta-relay
 
-# Résultat
-sleep 10
+# 9. Résultat
+sleep 15
 PEER_ID=$(curl -s http://localhost:3030/api/network 2>/dev/null | grep -oP '"local_peer_id":"\K[^"]+' | head -1 || echo "en_attente")
-PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "IP_INCONNUE")
+PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}' | head -1)
 
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║              ✅ RELAIS INSTALLÉ AVEC SUCCÈS !              ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "${BLUE}🌐 Bootstrap address:${NC}"
+echo -e "${BLUE}🌐 Adresse bootstrap :${NC}"
 echo -e "${YELLOW}/ip4/${PUBLIC_IP}/tcp/4001/p2p/${PEER_ID}${NC}"
 echo ""
-echo -e "${BLUE}🌐 Web interface: http://${PUBLIC_IP}:3030${NC}"
+echo -e "${BLUE}🌐 Interface web : http://${PUBLIC_IP}:3030${NC}"
 echo ""
 echo -e "${GREEN}🎉 Relais opérationnel !${NC}"
