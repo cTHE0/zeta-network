@@ -8,117 +8,162 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #000;
+            color: #e7e9ea;
             min-height: 100vh;
+            line-height: 1.5;
         }
         .hero {
             text-align: center;
-            padding: 4rem 1rem;
+            padding: 4rem 1rem 2rem;
             max-width: 800px;
             margin: 0 auto;
         }
-        .logo {
-            font-size: 3.5rem;
-            font-weight: 800;
-            background: linear-gradient(90deg, #8b5cf6, #ec4899);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
             margin-bottom: 1rem;
+        }
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #1d9bf0, #7856ff);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+        }
+        .logo-text {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #e7e9ea;
         }
         .tagline {
             font-size: 1.3rem;
-            color: #94a3b8;
-            margin-bottom: 2rem;
+            color: #71767b;
+            margin-bottom: 2.5rem;
         }
         .cta {
             display: flex;
             gap: 1rem;
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 2rem;
+            margin-bottom: 3rem;
         }
         .btn {
             padding: 1rem 2rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1.1rem;
+            border-radius: 24px;
+            font-weight: 700;
+            font-size: 1rem;
             text-decoration: none;
-            transition: transform 0.2s;
+            transition: all 0.2s;
             cursor: pointer;
             border: none;
         }
-        .btn:hover { transform: translateY(-2px); }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn-primary {
-            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            background: #1d9bf0;
             color: white;
         }
         .btn-secondary {
-            background: #1e293b;
-            color: white;
-            border: 2px solid #6366f1;
+            background: transparent;
+            color: #1d9bf0;
+            border: 1px solid #2f3336;
+        }
+        .btn-secondary:hover {
+            background: rgba(29, 155, 240, 0.1);
         }
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
             padding: 2rem 1rem;
             max-width: 1000px;
             margin: 0 auto;
         }
         .feature {
-            background: #1e293b;
-            padding: 2rem;
+            background: transparent;
+            padding: 1.5rem;
             border-radius: 16px;
+            border: 1px solid #2f3336;
             text-align: center;
+            transition: all 0.2s;
         }
-        .feature-icon { font-size: 2.5rem; margin-bottom: 1rem; }
-        .feature h3 { margin-bottom: 0.5rem; }
-        .feature p { color: #94a3b8; font-size: 0.95rem; }
+        .feature:hover {
+            background: rgba(29, 155, 240, 0.05);
+            border-color: #1d9bf0;
+        }
+        .feature-icon { 
+            font-size: 2rem; 
+            margin-bottom: 0.75rem;
+            filter: grayscale(0.3);
+        }
+        .feature h3 { 
+            margin-bottom: 0.5rem;
+            color: #e7e9ea;
+            font-size: 1.1rem;
+        }
+        .feature p { 
+            color: #71767b; 
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
         .footer {
             text-align: center;
             padding: 2rem;
-            color: #64748b;
-            border-top: 1px solid #334155;
-            margin-top: 2rem;
+            color: #71767b;
+            border-top: 1px solid #2f3336;
+            margin-top: 3rem;
         }
-        .footer a { color: #8b5cf6; text-decoration: none; }
-        .footer a:hover { text-decoration: underline; }
+        .footer a { 
+            color: #1d9bf0; 
+            text-decoration: none;
+        }
+        .footer a:hover { 
+            text-decoration: underline; 
+        }
     </style>
 </head>
 <body>
     <section class="hero">
-        <div class="logo">ζ Zeta Network</div>
+        <div class="logo-container">
+            <div class="logo-icon">ζ</div>
+            <div class="logo-text">Zeta Network</div>
+        </div>
         <p class="tagline">Réseau social décentralisé • Aucun compte • 100% P2P</p>
         
         <div class="cta">
-            <a href="/app" class="btn btn-primary">🚀 Accéder au réseau</a>
-            <a href="/install" class="btn btn-secondary">📥 Héberger un relais</a>
+            <a href="/app" class="btn btn-primary">Accéder au réseau</a>
+            <a href="/install" class="btn btn-secondary">Héberger un relais</a>
         </div>
     </section>
 
     <section class="features">
         <div class="feature">
             <div class="feature-icon">🔒</div>
-            <h3>Vie privée</h3>
-            <p>Vos données restent sur votre appareil. Aucun tracking.</p>
+            <h3>Privacy First</h3>
+            <p>Your data stays on your device. No tracking.</p>
         </div>
         <div class="feature">
             <div class="feature-icon">🌐</div>
-            <h3>Décentralisé</h3>
-            <p>Aucun serveur central. Réseau peer-to-peer.</p>
+            <h3>Decentralized</h3>
+            <p>No central server. Peer-to-peer network.</p>
         </div>
         <div class="feature">
             <div class="feature-icon">⚡</div>
-            <h3>Instantané</h3>
-            <p>Messages diffusés en temps réel.</p>
+            <h3>Real-time</h3>
+            <p>Messages broadcast instantly.</p>
         </div>
         <div class="feature">
             <div class="feature-icon">🆓</div>
             <h3>Open Source</h3>
-            <p>Code libre et transparent.</p>
+            <p>Free and transparent code.</p>
         </div>
     </section>
 
