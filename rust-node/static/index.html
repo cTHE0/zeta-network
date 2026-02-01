@@ -40,10 +40,27 @@
         }
         
         .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-size: 20px;
             font-weight: 700;
             letter-spacing: -0.5px;
             color: #e7e9ea;
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #1d9bf0, #7856ff);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            font-family: Georgia, serif;
         }
         
         .status {
@@ -183,6 +200,33 @@
             white-space: pre-wrap;
         }
         
+        .post-image {
+            margin-top: 12px;
+            border-radius: 16px;
+            border: 1px solid #2f3336;
+            max-width: 100%;
+            max-height: 512px;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        
+        .post-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2f3336;
+        }
+        
+        .action-btn {
+            color: #71767b;
+            font-size: 13px;
+            cursor: pointer;
+            transition: color 0.2s;
+            user-select: none;
+        }
+        .action-btn:hover { color: #1d9bf0; }
+        
         .peers-section {
             border-bottom: 1px solid #2f3336;
             padding: 16px;
@@ -198,14 +242,18 @@
         
         .peers-list {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        
-        .peer-badge {
-            background: #16181c;
-            border: 1px solid #2f3336;
-            padding: 4px 12px;
+                    <div class="logo-icon">ζ</div>
+                    <span>Zeta Network</span>
+                </div>
+                <div class="status" id="status">
+                    <div class="status-indicator connecting"></div>
+                    <span>Connecting</span>
+                </div>
+            </div>
+            <div class="meta-info">
+                <span>ID <span id="peerId">...</span></span>
+                <span><span id="peersCount">0</span> peers</span>
+                <span><span id="postsCount">0</span> post
             border-radius: 9999px;
             font-size: 13px;
             color: #71767b;
@@ -288,7 +336,7 @@
 
             ws.onopen = () => {
                 updateStatus('Connected', 'online');
-            };
+            };currentFilter ? renderFilteredPosts() : 
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
@@ -315,15 +363,73 @@
                     renderPosts();
                     renderPeers();
                     break;
-                case 'new_post':
-                    if (!posts.find(p => p.id === data.post.id)) {
-                        posts.unshift(data.post);
-                        if (posts.length > 100) posts.pop();
-                        renderPosts();
-                    }
-                    break;
-                case 'peer_joined':
-                    if (!peers.find(p => p.peer_id === data.peer_id)) {
+            document.getElementById('postsCount').textContent = posts.length;
+            elements.feed.innerHTML = posts.map(post => {
+                const imageUrl = extractImageUrl(post.content);
+                const textContent = imageUrl ? post.content.replace(imageUrl, '').trim() : post.content;
+                
+                return `
+                <div class="post">
+                    <div class="post-header">
+                        <span class="post-author">${escapeHtml(post.author_name)}</span>
+                        <span class="post-time">${formatTime(post.timestamp)}</span>
+                    </div>
+                    <div class="post-content">${linkify(escapeHtml(textContent))}</div>
+                    ${imageUrl ? `<img src="${imageUrl}" class="post-image" onclick="window.open('${imageUrl}', '_blank')" loading="lazy">` : ''}
+                    <div class="post-actions">
+                        <span class="action-btn" onclick="filterByAuthor('${escapeHtml(post.author_name)}')">View profile</span>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        function extractImageUrl(text) {
+            const imageRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/i;
+            const match = text.match(imageRegex);
+            return match ? match[1] : null;
+        }
+        
+        function linkify(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, '<a href="$1" target="_blank" style="color: #1d9bf0; text-decoration: none;">$1</a>');
+        }
+        
+        let currentFilter = null;
+        function filterByAuthor(authorName) {
+            currentFilter = currentFilter === authorName ? null : authorName;
+            renderFilteredPosts();
+        }
+        
+        function renderFilteredPosts() {
+            const filteredPosts = currentFilter ? posts.filter(p => p.author_name === currentFilter) : posts;
+            
+            if (filteredPosts.length === 0) {
+                elements.feed.innerHTML = `<div class="empty">${currentFilter ? `No posts from ${currentFilter}` : 'No messages yet'}</div>`;
+                return;
+            }
+            
+            elements.feed.innerHTML = (currentFilter ? `
+                <div style="padding: 16px; border-bottom: 1px solid #2f3336; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; font-size: 15px;">Posts by ${escapeHtml(currentFilter)}</span>
+                    <button onclick="filterByAuthor('${escapeHtml(currentFilter)}')" style="background: transparent; border: 1px solid #2f3336; color: #1d9bf0; padding: 4px 16px; border-radius: 9999px; cursor: pointer;">Clear</button>
+                </div>
+            ` : '') + filteredPosts.map(post => {
+                const imageUrl = extractImageUrl(post.content);
+                const textContent = imageUrl ? post.content.replace(imageUrl, '').trim() : post.content;
+                
+                return `
+                <div class="post">
+                    <div class="post-header">
+                        <span class="post-author">${escapeHtml(post.author_name)}</span>
+                        <span class="post-time">${formatTime(post.timestamp)}</span>
+                    </div>
+                    <div class="post-content">${linkify(escapeHtml(textContent))}</div>
+                    ${imageUrl ? `<img src="${imageUrl}" class="post-image" onclick="window.open('${imageUrl}', '_blank')" loading="lazy">` : ''}
+                    <div class="post-actions">
+                        <span class="action-btn" onclick="filterByAuthor('${escapeHtml(post.author_name)}')">View profile</span>
+                    </div>
+                </div>
+            `}       if (!peers.find(p => p.peer_id === data.peer_id)) {
                         peers.push({ peer_id: data.peer_id });
                         renderPeers();
                     }

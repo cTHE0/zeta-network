@@ -7,158 +7,252 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ζ</text></svg>">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a;
-            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #000;
+            color: #e7e9ea;
             min-height: 100vh;
         }
-        .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+        
+        .container {
+            max-width: 598px;
+            margin: 0 auto;
+            border-left: 1px solid #2f3336;
+            border-right: 1px solid #2f3336;
+            min-height: 100vh;
+        }
         
         .header {
-            text-align: center;
-            padding: 1.5rem 0;
-            border-bottom: 1px solid #334155;
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #2f3336;
+            padding: 0 16px;
+            z-index: 10;
         }
+        
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 53px;
+        }
+        
         .logo {
-            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
             font-weight: 700;
-            background: linear-gradient(90deg, #8b5cf6, #ec4899);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            letter-spacing: -0.5px;
+            color: #e7e9ea;
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #1d9bf0, #7856ff);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            font-family: Georgia, serif;
         }
         
         .status {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem;
-            margin: 1rem 0;
-            background: #1e293b;
-            border-radius: 10px;
-            font-size: 0.9rem;
+            gap: 8px;
+            font-size: 13px;
+            color: #71767b;
         }
-        .status.connected { background: #064e3b; }
-        .status.error { background: #7f1d1d; }
+        
+        .status-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #71767b;
+        }
+        .status.connected .status-indicator { background: #00ba7c; }
+        .status.error .status-indicator { background: #f4212e; }
+        
         .spinner {
-            width: 16px; height: 16px;
-            border: 2px solid #4b5563;
-            border-top-color: #8b5cf6;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #2f3336;
+            border-top-color: #1d9bf0;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         
+        .network-stats {
+            display: flex;
+            gap: 16px;
+            padding: 8px 0 12px;
+            font-size: 13px;
+            color: #71767b;
+            border-bottom: 1px solid #2f3336;
+        }
+        .network-stats span { display: flex; align-items: center; gap: 4px; }
+        
         .compose {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 1rem;
-            margin: 1rem 0;
+            border-bottom: 1px solid #2f3336;
+            padding: 16px;
         }
-        .compose input {
-            width: 100%;
-            background: #334155;
-            border: none;
-            padding: 0.7rem;
-            border-radius: 8px;
-            color: white;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
+        
+        .compose input,
         .compose textarea {
             width: 100%;
-            background: #334155;
+            background: transparent;
             border: none;
-            padding: 0.7rem;
-            border-radius: 8px;
-            color: white;
-            font-size: 1rem;
-            min-height: 80px;
+            color: #e7e9ea;
+            font-size: 15px;
+            font-family: inherit;
             resize: none;
+            outline: none;
         }
+        
+        .compose input {
+            padding: 4px 0;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #2f3336;
+        }
+        
+        .compose input::placeholder,
+        .compose textarea::placeholder {
+            color: #71767b;
+        }
+        
+        .compose textarea {
+            min-height: 64px;
+            line-height: 20px;
+            padding: 8px 0;
+        }
+        
         .compose-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 0.5rem;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2f3336;
         }
-        .char-count { color: #64748b; font-size: 0.85rem; }
-        .char-count.warning { color: #f59e0b; }
-        .char-count.error { color: #ef4444; }
+        
+        .char-count {
+            font-size: 13px;
+            color: #71767b;
+        }
+        .char-count.warning { color: #ffd400; }
+        .char-count.error { color: #f4212e; }
         
         .btn {
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            font-weight: 600;
+            background: #1d9bf0;
             border: none;
+            border-radius: 9999px;
+            padding: 8px 24px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: background 0.2s;
         }
+        .btn:hover { background: #1a8cd8; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: #6366f1; color: white; }
-        .btn-primary:hover:not(:disabled) { background: #4f46e5; }
         
-        .feed { margin: 1rem 0; }
+        .feed { padding-bottom: 48px; }
+        
         .post {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
+            border-bottom: 1px solid #2f3336;
+            padding: 16px;
+            transition: background 0.2s;
         }
+        .post:hover { background: rgba(255, 255, 255, 0.03); }
+        
         .post-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 0.5rem;
+            align-items: baseline;
+            margin-bottom: 4px;
         }
-        .post-author { font-weight: 600; color: #a5b4fc; }
-        .post-time { color: #64748b; font-size: 0.85rem; }
-        .post-content { line-height: 1.5; word-wrap: break-word; }
         
-        .network-stats {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            padding: 0.5rem 0;
-            font-size: 0.9rem;
-            color: #94a3b8;
+        .post-author {
+            font-size: 15px;
+            font-weight: 700;
+            color: #e7e9ea;
         }
-        .stat { text-align: center; }
-        .stat-value { font-weight: 700; color: white; font-size: 1.1rem; }
+        
+        .post-time {
+            font-size: 13px;
+            color: #71767b;
+        }
+        
+        .post-content {
+            font-size: 15px;
+            line-height: 20px;
+            color: #e7e9ea;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        .post-content a {
+            color: #1d9bf0;
+            text-decoration: none;
+        }
+        
+        .post-image {
+            margin-top: 12px;
+            border-radius: 16px;
+            border: 1px solid #2f3336;
+            max-width: 100%;
+            max-height: 512px;
+            object-fit: cover;
+            cursor: pointer;
+        }
         
         .footer {
             text-align: center;
-            padding: 1rem;
-            color: #64748b;
-            font-size: 0.85rem;
+            padding: 16px;
+            color: #71767b;
+            font-size: 13px;
+            border-top: 1px solid #2f3336;
         }
-        .footer a { color: #8b5cf6; text-decoration: none; }
+        .footer a { color: #1d9bf0; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <div class="logo">ζ Zeta Network</div>
+            <div class="header-top">
+                <div class="logo">
+                    <div class="logo-icon">ζ</div>
+                    <span>Zeta Network</span>
+                </div>
+            </div>
         </header>
         
         <div id="status" class="status">
             <div class="spinner"></div>
-            <span id="statusText">Chargement...</span>
+            <span id="statusText">Loading...</span>
         </div>
         
         <div id="networkStats" class="network-stats" style="display: none;">
-            <div class="stat"><div class="stat-value" id="relaysCount">0</div>relais</div>
-            <div class="stat"><div class="stat-value" id="postsCount">0</div>posts</div>
+            <span><span id="relaysCount">0</span> relays</span>
+            <span><span id="postsCount">0</span> posts</span>
         </div>
         
         <div id="app" style="display: none;">
             <div class="compose">
-                <input type="text" id="authorName" placeholder="Votre pseudo" maxlength="20">
-                <textarea id="postContent" placeholder="Partagez quelque chose..." maxlength="280"></textarea>
+                <input type="text" id="authorName" placeholder="Display name" maxlength="20">
+                <textarea id="postContent" placeholder="What's happening?"></textarea>
                 <div class="compose-footer">
                     <span id="charCount" class="char-count">0/280</span>
-                    <button id="publishBtn" class="btn btn-primary" disabled>Publier</button>
+                    <button id="publishBtn" class="btn" disabled>Post</button>
                 </div>
             </div>
             
@@ -166,7 +260,7 @@
         </div>
         
         <footer class="footer">
-            <a href="/">Accueil</a> • <a href="https://github.com/cTHE0/zeta-network">GitHub</a>
+            <a href="/">Home</a> · <a href="https://github.com/cTHE0/zeta-network">GitHub</a>
         </footer>
     </div>
 
@@ -264,20 +358,15 @@
         function updateStatus() {
             const connected = Array.from(connections.values()).filter(c => c.connected).length;
             const total = allRelays.length;
-            
-            document.getElementById('relaysCount').textContent = connected;
-            
-            if (connected === 0) {
-                statusEl.className = 'status error';
-                statusText.textContent = `❌ Déconnecté (0/${total} relais)`;
+            Disconnected (0/${total} relays)`;
                 publishBtn.disabled = true;
             } else if (connected === total) {
                 statusEl.className = 'status connected';
-                statusText.textContent = `✅ Connecté à ${connected} relais`;
+                statusText.textContent = `Connected to ${connected} relays`;
                 publishBtn.disabled = false;
             } else {
                 statusEl.className = 'status';
-                statusText.textContent = `🔄 ${connected}/${total} relais actifs`;
+                statusText.textContent = `${connected}/${total} relays active`;
                 publishBtn.disabled = false;
             }
         }
@@ -299,19 +388,39 @@
             }
         }
         
+        function extractImageUrl(text) {
+            const imageRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/i;
+            const match = text.match(imageRegex);
+            return match ? match[1] : null;
+        }
+        
+        function linkify(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, '<a href="$1" target="_blank">$1</a>');
+        }
+        
         function addPost(post) {
             console.log('➕ Ajout post:', post.id, post.content);
             if (postIds.has(post.id)) {
                 console.log('  ⚠️ Post déjà présent (dédupliqué)');
-                return; // Déduplication
+                return;
             }
             postIds.add(post.id);
             
             document.getElementById('postsCount').textContent = postIds.size;
             
+            const imageUrl = extractImageUrl(post.content);
+            const textContent = imageUrl ? post.content.replace(imageUrl, '').trim() : post.content;
+            
             const el = document.createElement('div');
             el.className = 'post';
             el.innerHTML = `
+                <div class="post-header">
+                    <span class="post-author">${escapeHtml(post.author_name || post.author || 'Anonymous')}</span>
+                    <span class="post-time">${formatTime(post.timestamp)}</span>
+                </div>
+                <div class="post-content">${linkify(escapeHtml(textContent))}</div>
+                ${imageUrl ? `<img src="${imageUrl}" class="post-image" onclick="window.open('${imageUrl}', '_blank')" loading="lazy">` : ''}
                 <div class="post-header">
                     <span class="post-author">${escapeHtml(post.author_name || post.author || 'Anonyme')}</span>
                     <span class="post-time">${formatTime(post.timestamp)}</span>
