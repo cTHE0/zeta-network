@@ -136,34 +136,20 @@
             <h2>Prérequis</h2>
             <ul>
                 <li>Un VPS Linux (Ubuntu/Debian) - à partir de 5€/mois</li>
-                <li>Un nom de domaine pointant vers votre VPS (ex: relay.monsite.com)</li>
-                <li>Ports 80 et 443 ouverts (pour HTTPS automatique)</li>
+                <li>C'est tout ! HTTPS est automatique, pas de domaine requis</li>
             </ul>
         </div>
         
         <div class="step">
             <span class="step-number">1</span>
-            <h3>Configurer le DNS</h3>
-            <p>Créez un enregistrement DNS de type A :</p>
-            <div class="code">
-                <span class="code-line code-comment"># Exemple chez votre registrar DNS</span>
-                <span class="code-line">relay.votredomaine.com  →  IP_DE_VOTRE_VPS</span>
-            </div>
-        </div>
-        
-        <div class="step">
-            <span class="step-number">2</span>
             <h3>Cloner et installer</h3>
             <p>Connectez-vous en SSH à votre VPS et exécutez :</p>
             <div class="code">
                 <button class="copy-btn" onclick="copyCode(this)">Copier</button>
                 <span class="code-line">git clone https://github.com/cTHE0/zeta-network.git</span>
                 <span class="code-line">cd zeta-network/rust-node</span>
-                <span class="code-line">sudo ./install-relay.sh relay.votredomaine.com</span>
+                <span class="code-line">sudo ./install-relay.sh</span>
             </div>
-            <p style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.9rem;">
-                ⚠️ Remplacez <code>relay.votredomaine.com</code> par votre vrai domaine
-            </p>
         </div>
         
         <div class="step">
@@ -171,15 +157,14 @@
             <h3>C'est tout !</h3>
             <p>Le script fait tout automatiquement :</p>
             <ul style="color: #94a3b8; margin-top: 0.5rem; padding-left: 1.5rem;">
-                <li>Télécharge ou compile le relais</li>
-                <li>Installe Caddy (serveur HTTPS)</li>
-                <li>Obtient un certificat Let's Encrypt</li>
-                <li>Démarre les services</li>
+                <li>Télécharge le relais</li>
+                <li>Configure HTTPS automatiquement (Cloudflare Tunnel)</li>
+                <li>Affiche l'URL <code>wss://</code> à partager</li>
             </ul>
         </div>
         
         <div class="info-box">
-            <strong>💡 Résultat :</strong> Votre relais sera accessible sur <code>wss://relay.votredomaine.com/ws</code> avec HTTPS automatique et renouvellement des certificats.
+            <strong>💡 Résultat :</strong> Vous obtiendrez une URL <code>wss://xxx.trycloudflare.com/ws</code> - partagez-la pour que d'autres se connectent !
         </div>
         
         <div class="step">
