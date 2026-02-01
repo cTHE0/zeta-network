@@ -5,160 +5,258 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ζ Zeta Network</title>
     <style>
-        :root {
-            --primary: #6366f1;
-            --secondary: #8b5cf6;
-            --dark: #0f172a;
-            --dark-800: #1e293b;
-            --light: #f8fafc;
-            --gray: #94a3b8;
-            --success: #10b981;
-            --error: #ef4444;
-        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--dark);
-            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #000;
+            color: #e7e9ea;
             min-height: 100vh;
         }
-        .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+        
+        .container {
+            max-width: 598px;
+            margin: 0 auto;
+            border-left: 1px solid #2f3336;
+            border-right: 1px solid #2f3336;
+            min-height: 100vh;
+        }
+        
         .header {
-            text-align: center;
-            padding: 2rem 0;
-            border-bottom: 1px solid var(--dark-800);
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #2f3336;
+            padding: 0 16px;
+            z-index: 10;
         }
+        
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 53px;
+        }
+        
         .logo {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #e7e9ea;
         }
+        
         .status {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            padding: 0.5rem 1rem;
-            background: var(--dark-800);
-            border-radius: 20px;
-            font-size: 0.9rem;
+            gap: 8px;
+            font-size: 13px;
+            color: #71767b;
         }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--gray);
-        }
-        .status-dot.online { background: var(--success); }
-        .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
-        .info { display: flex; gap: 1rem; justify-content: center; margin-top: 0.5rem; font-size: 0.85rem; color: var(--gray); }
+        .status-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #71767b;
+        }
+        .status-indicator.online { background: #00ba7c; }
+        .status-indicator.connecting { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        .meta-info {
+            display: flex;
+            gap: 16px;
+            padding: 8px 0 12px;
+            font-size: 13px;
+            color: #71767b;
+            border-bottom: 1px solid #2f3336;
+        }
+        .meta-info span { display: flex; align-items: center; gap: 4px; }
         
         .compose {
-            background: var(--dark-800);
-            border-radius: 12px;
-            padding: 1rem;
-            margin: 1rem 0;
+            border-bottom: 1px solid #2f3336;
+            padding: 16px;
         }
-        .compose input, .compose textarea {
+        
+        .compose-inner {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .compose-content {
+            flex: 1;
+        }
+        
+        .compose input,
+        .compose textarea {
             width: 100%;
-            background: var(--dark);
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 0.75rem;
-            color: white;
-            font-size: 1rem;
-            resize: none;
-        }
-        .compose input { margin-bottom: 0.5rem; }
-        .compose textarea { min-height: 80px; }
-        .compose-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
-        .btn {
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            background: transparent;
             border: none;
-            border-radius: 8px;
-            padding: 0.6rem 1.5rem;
-            color: white;
-            font-weight: 600;
+            color: #e7e9ea;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+        }
+        
+        .compose input {
+            padding: 4px 0;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #2f3336;
+        }
+        
+        .compose input::placeholder,
+        .compose textarea::placeholder {
+            color: #71767b;
+        }
+        
+        .compose textarea {
+            min-height: 64px;
+            line-height: 20px;
+            padding: 8px 0;
+        }
+        
+        .compose-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2f3336;
+        }
+        
+        .char-count {
+            font-size: 13px;
+            color: #71767b;
+        }
+        .char-count.warning { color: #ffd400; }
+        .char-count.danger { color: #f4212e; }
+        
+        .btn {
+            background: #1d9bf0;
+            border: none;
+            border-radius: 9999px;
+            padding: 8px 24px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s, opacity 0.2s;
+            transition: background 0.2s;
         }
-        .btn:hover { transform: translateY(-1px); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .char-count { color: var(--gray); font-size: 0.85rem; }
-        .char-count.warning { color: #f59e0b; }
-        .char-count.danger { color: var(--error); }
+        .btn:hover { background: #1a8cd8; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        .feed { margin-top: 1rem; }
+        .feed { padding-bottom: 48px; }
+        
         .post {
-            background: var(--dark-800);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            animation: slideIn 0.3s ease;
+            border-bottom: 1px solid #2f3336;
+            padding: 16px;
+            transition: background 0.2s;
+            cursor: pointer;
         }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .post-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
-        .post-author { font-weight: 600; color: var(--primary); }
-        .post-time { color: var(--gray); font-size: 0.85rem; }
-        .post-content { line-height: 1.5; word-wrap: break-word; }
+        .post:hover { background: rgba(255, 255, 255, 0.03); }
         
-        .peers {
-            background: var(--dark-800);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-top: 1rem;
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
         }
-        .peers-title { font-size: 0.9rem; color: var(--gray); margin-bottom: 0.5rem; }
-        .peers-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        
+        .post-author {
+            font-size: 15px;
+            font-weight: 700;
+            color: #e7e9ea;
+        }
+        
+        .post-time {
+            font-size: 13px;
+            color: #71767b;
+        }
+        
+        .post-content {
+            font-size: 15px;
+            line-height: 20px;
+            color: #e7e9ea;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        .peers-section {
+            border-bottom: 1px solid #2f3336;
+            padding: 16px;
+        }
+        
+        .peers-title {
+            font-size: 13px;
+            color: #71767b;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .peers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
         .peer-badge {
-            background: var(--dark);
-            padding: 0.25rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            color: var(--gray);
+            background: #16181c;
+            border: 1px solid #2f3336;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 13px;
+            color: #71767b;
+            font-family: 'SF Mono', Monaco, monospace;
         }
-        .peer-badge.browser { border: 1px solid var(--secondary); color: var(--secondary); }
         
-        .empty { text-align: center; padding: 2rem; color: var(--gray); }
+        .empty {
+            text-align: center;
+            padding: 48px 16px;
+            color: #71767b;
+            font-size: 15px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">ζ Zeta Network</div>
-            <div class="status" id="status">
-                <div class="status-dot connecting"></div>
-                <span>Connexion...</span>
+            <div class="header-top">
+                <div class="logo">Zeta Network</div>
+                <div class="status" id="status">
+                    <div class="status-indicator connecting"></div>
+                    <span>Connecting</span>
+                </div>
             </div>
-            <div class="info">
-                <span>🆔 <span id="peerId">...</span></span>
-                <span>👥 <span id="peersCount">0</span> pairs</span>
+            <div class="meta-info">
+                <span>ID <span id="peerId">...</span></span>
+                <span><span id="peersCount">0</span> peers</span>
             </div>
         </div>
 
         <div class="compose">
-            <input type="text" id="authorName" placeholder="Votre nom" maxlength="24">
-            <textarea id="postContent" placeholder="Quoi de neuf ?" maxlength="280"></textarea>
-            <div class="compose-actions">
-                <span class="char-count" id="charCount">0/280</span>
-                <button class="btn" id="publishBtn" disabled>Publier</button>
+            <div class="compose-inner">
+                <div class="compose-content">
+                    <input type="text" id="authorName" placeholder="Display name" maxlength="24">
+                    <textarea id="postContent" placeholder="What's happening?"></textarea>
+                    <div class="compose-actions">
+                        <span class="char-count" id="charCount">0/280</span>
+                        <button class="btn" id="publishBtn" disabled>Post</button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="feed" id="feed">
-            <div class="empty">Aucun message pour l'instant</div>
+            <div class="empty">No messages yet</div>
         </div>
 
-        <div class="peers">
-            <div class="peers-title">Pairs connectés</div>
+        <div class="peers-section">
+            <div class="peers-title">Connected Peers</div>
             <div class="peers-list" id="peersList">
-                <div class="peer-badge">En attente...</div>
+                <div class="peer-badge">Waiting...</div>
             </div>
         </div>
     </div>
@@ -189,7 +287,7 @@
             ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
             ws.onopen = () => {
-                updateStatus('Connecté', 'online');
+                updateStatus('Connected', 'online');
             };
 
             ws.onmessage = (event) => {
@@ -198,12 +296,12 @@
             };
 
             ws.onclose = () => {
-                updateStatus('Déconnecté', 'connecting');
+                updateStatus('Disconnected', 'connecting');
                 setTimeout(connect, 3000);
             };
 
             ws.onerror = () => {
-                updateStatus('Erreur', 'connecting');
+                updateStatus('Error', 'connecting');
             };
         }
 
@@ -238,14 +336,14 @@
         }
 
         function updateStatus(text, state) {
-            const dot = elements.status.querySelector('.status-dot');
-            dot.className = `status-dot ${state}`;
+            const indicator = elements.status.querySelector('.status-indicator');
+            indicator.className = `status-indicator ${state}`;
             elements.status.querySelector('span').textContent = text;
         }
 
         function renderPosts() {
             if (posts.length === 0) {
-                elements.feed.innerHTML = '<div class="empty">Aucun message pour l\'instant</div>';
+                elements.feed.innerHTML = '<div class="empty">No messages yet</div>';
                 return;
             }
             elements.feed.innerHTML = posts.map(post => `
@@ -262,13 +360,12 @@
         function renderPeers() {
             elements.peersCount.textContent = peers.length;
             if (peers.length === 0) {
-                elements.peersList.innerHTML = '<div class="peer-badge">En attente...</div>';
+                elements.peersList.innerHTML = '<div class="peer-badge">Waiting...</div>';
                 return;
             }
             elements.peersList.innerHTML = peers.map(p => {
-                const isBrowser = p.is_browser || p.peer_id?.startsWith('browser-');
                 const shortId = p.peer_id?.substring(0, 8) || '?';
-                return `<div class="peer-badge ${isBrowser ? 'browser' : ''}">${shortId}</div>`;
+                return `<div class="peer-badge">${shortId}</div>`;
             }).join('');
         }
 
