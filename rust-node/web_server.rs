@@ -27,7 +27,11 @@ struct PostRequest {
 struct WsMessage {
     #[serde(rename = "type")]
     msg_type: String,
+    // Format avec data (app.html de PythonAnywhere)
     data: Option<WsPostData>,
+    // Format direct (static/index.html du relais)
+    content: Option<String>,
+    author_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -196,16 +200,32 @@ async fn handle_websocket(ws: WebSocket, network_state: NetworkState, p2p_state:
                             if let Ok(ws_msg) = serde_json::from_str::<WsMessage>(text) {
                                 match ws_msg.msg_type.as_str() {
                                     "post" => {
-                                        if let Some(data) = ws_msg.data {
-                                            let content = data.content.unwrap_or_default();
-                                            let author_name = data.author.unwrap_or_else(|| "Anonyme".to_string());
-                                            
+                                        // Supporter les deux formats de message
+                                        let (content, author_name, post_id, timestamp) = if let Some(data) = ws_msg.data {
+                                            // Format avec data: { type: "post", data: { content, author, ... } }
+                                            (
+                                                data.content.unwrap_or_default(),
+                                                data.author.unwrap_or_else(|| "Anonyme".to_string()),
+                                                data.id,
+                                                data.timestamp,
+                                            )
+                                        } else {
+                                            // Format direct: { type: "post", content, author_name }
+                                            (
+                                                ws_msg.content.unwrap_or_default(),
+                                                ws_msg.author_name.unwrap_or_else(|| "Anonyme".to_string()),
+                                                None,
+                                                None,
+                                            )
+                                        };
+                                        
+                                        if !content.is_empty() {
                                             let post = Post {
-                                                id: data.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+                                                id: post_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
                                                 author: browser_peer_id.clone(),
                                                 author_name: author_name.clone(),
                                                 content: content.clone(),
-                                                timestamp: data.timestamp.unwrap_or_else(|| chrono::Utc::now().timestamp_millis()),
+                                                timestamp: timestamp.unwrap_or_else(|| chrono::Utc::now().timestamp_millis()),
                                             };
 
                                             // Ajouter localement
