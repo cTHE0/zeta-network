@@ -14,6 +14,7 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zeta-dev-key')
 # Après avoir lancé install-relay.sh sur un VPS, ajoutez l'IP:port
 RELAYS = [
     {"name": "EU 1", "ws": "ws://65.75.201.11:3030/ws", "api": "http://65.75.201.11:3030"},
+    {"name": "EU 2", "ws": "ws://65.75.200.180:3030/ws", "api": "http://65.75.200.180:3030"},
 ]
 
 @app.route('/')
