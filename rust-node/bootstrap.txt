@@ -1,5 +1,9 @@
 # Bootstrap peers pour Zeta Network
-# Une adresse multiaddr par ligne
-# Format: /ip4/IP/tcp/4001/p2p/PEER_ID
-# Exemple:
-# /ip4/65.75.201.11/tcp/4001/p2p/12D3KooW...
+# Ajoutez les adresses des autres relais pour permettre la communication inter-relais
+# Format: /ip4/IP/tcp/PORT (le Peer ID n'est pas requis, il sera découvert automatiquement)
+
+# EU 1 - Premier relais
+/ip4/65.75.201.11/tcp/4001
+
+# EU 2 - Second relais (ami)
+/ip4/65.75.200.180/tcp/4001

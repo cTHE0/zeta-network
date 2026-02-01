@@ -194,14 +194,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         info!("💻 Mode CLIENT - Port aléatoire");
     }
 
-    // Bootstrap peers
-    let bootstrap_peers = load_bootstrap_peers();
-    for (peer_id, addr) in &bootstrap_peers {
+    // Bootstrap peers - connexion sans Peer ID requis
+    let bootstrap_addrs = load_bootstrap_addrs();
+    for addr in &bootstrap_addrs {
         info!("🔗 Connexion au bootstrap: {}", addr);
         if let Err(e) = swarm.dial(addr.clone()) {
             warn!("⚠️ Échec connexion bootstrap: {}", e);
         }
-        swarm.behaviour_mut().gossipsub.add_explicit_peer(peer_id);
     }
 
     let network_state = NetworkState::new(local_peer_id, local_name.clone());
@@ -222,18 +221,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("🎉 Zeta Network prêt!");
 
     let mut reconnect_interval = tokio::time::interval(Duration::from_secs(30));
-    let bootstrap_clone = bootstrap_peers.clone();
+    let bootstrap_clone = bootstrap_addrs.clone();
 
     use futures::StreamExt;
     
     loop {
         tokio::select! {
             _ = reconnect_interval.tick() => {
-                for (peer_id, addr) in &bootstrap_clone {
-                    if !swarm.is_connected(peer_id) {
-                        info!("🔄 Reconnexion à {}...", peer_id);
-                        let _ = swarm.dial(addr.clone());
-                    }
+                for addr in &bootstrap_clone {
+                    info!("🔄 Tentative reconnexion à {}...", addr);
+                    let _ = swarm.dial(addr.clone());
                 }
             }
 
@@ -341,14 +338,14 @@ fn load_or_create_keypair(path: &str) -> Result<libp2p::identity::Keypair, Box<d
     }
 }
 
-fn load_bootstrap_peers() -> Vec<(PeerId, Multiaddr)> {
+fn load_bootstrap_addrs() -> Vec<Multiaddr> {
     let path = "bootstrap.txt";
-    let mut peers = Vec::new();
+    let mut addrs = Vec::new();
     
     if !Path::new(path).exists() {
-        let example = "# Bootstrap peers Zeta Network\n# Format: /ip4/IP/tcp/4001/p2p/PEER_ID\n";
+        let example = "# Bootstrap peers Zeta Network\n# Format: /ip4/IP/tcp/PORT (Peer ID not required)\n# Example: /ip4/65.75.201.11/tcp/4001\n";
         let _ = fs::write(path, example);
-        return peers;
+        return addrs;
     }
 
     if let Ok(file) = fs::File::open(path) {
@@ -358,22 +355,13 @@ fn load_bootstrap_peers() -> Vec<(PeerId, Multiaddr)> {
                 continue;
             }
             if let Ok(addr) = line.parse::<Multiaddr>() {
-                if let Some(peer_id) = extract_peer_id(&addr) {
-                    peers.push((peer_id, addr));
-                }
+                info!("📋 Bootstrap configuré: {}", addr);
+                addrs.push(addr);
+            } else {
+                warn!("⚠️ Adresse invalide dans bootstrap.txt: {}", line);
             }
         }
     }
 
-    peers
-}
-
-fn extract_peer_id(addr: &Multiaddr) -> Option<PeerId> {
-    addr.iter().find_map(|p| {
-        if let libp2p::multiaddr::Protocol::P2p(hash) = p {
-            PeerId::from_multihash(hash).ok()
-        } else {
-            None
-        }
-    })
+    addrs
 }
