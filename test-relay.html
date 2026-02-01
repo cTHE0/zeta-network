@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Relais Zeta</title>
+    <style>
+        body { font-family: monospace; padding: 2rem; background: #1a1a1a; color: #00ff00; }
+        .log { background: #000; padding: 1rem; border-radius: 8px; margin: 1rem 0; max-height: 400px; overflow-y: auto; }
+        .log div { margin: 0.3rem 0; }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .info { color: #00aaff; }
+        button { padding: 0.5rem 1rem; margin: 0.5rem; background: #00ff00; color: #000; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de connexion au relais Zeta</h1>
+    <p>Relais : <strong>ws://65.75.201.11:3030/ws</strong></p>
+    
+    <button onclick="testConnection()">Tester la connexion</button>
+    <button onclick="sendTestPost()">Envoyer un post test</button>
+    <button onclick="clearLog()">Effacer</button>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        let ws = null;
+        const RELAY_WS = 'ws://65.75.201.11:3030/ws';
+        
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('log').appendChild(div);
+            document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        function testConnection() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            
+            log('🔌 Connexion à ' + RELAY_WS + '...', 'info');
+            
+            try {
+                ws = new WebSocket(RELAY_WS);
+                
+                ws.onopen = () => {
+                    log('✅ CONNECTÉ !', 'success');
+                };
+                
+                ws.onmessage = (e) => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        log('📩 Reçu: ' + JSON.stringify(data), 'success');
+                        
+                        if (data.type === 'init') {
+                            log(`ℹ️  Peer ID: ${data.peer_id}`, 'info');
+                            log(`ℹ️  ${data.posts?.length || 0} posts, ${data.peers?.length || 0} peers`, 'info');
+                        }
+                    } catch (err) {
+                        log('📩 Message: ' + e.data, 'info');
+                    }
+                };
+                
+                ws.onerror = (err) => {
+                    log('❌ ERREUR: ' + err, 'error');
+                };
+                
+                ws.onclose = () => {
+                    log('🔌 Déconnecté', 'info');
+                };
+                
+            } catch (err) {
+                log('❌ ERREUR: ' + err.message, 'error');
+            }
+        }
+        
+        function sendTestPost() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ Pas connecté ! Cliquez sur "Tester la connexion" d\'abord', 'error');
+                return;
+            }
+            
+            const post = {
+                type: 'post',
+                data: {
+                    id: Math.random().toString(36).substr(2, 9),
+                    author: 'TestUser',
+                    content: 'Test post ' + new Date().toLocaleTimeString(),
+                    timestamp: Date.now()
+                }
+            };
+            
+            ws.send(JSON.stringify(post));
+            log('📤 Post envoyé: ' + post.data.content, 'success');
+        }
+        
+        // Auto-connect au chargement
+        window.onload = () => {
+            log('🚀 Page chargée. Cliquez sur "Tester la connexion"', 'info');
+        };
+    </script>
+</body>
+</html>

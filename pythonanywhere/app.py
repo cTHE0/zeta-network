@@ -13,7 +13,7 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zeta-dev-key')
 # Liste des relais publics - METTEZ VOS RELAIS ICI
 # Après avoir lancé install-relay.sh sur un VPS, ajoutez son IP
 RELAYS = [
-    # {"name": "EU 1", "ws": "ws://YOUR_VPS_IP:3030/ws", "api": "http://YOUR_VPS_IP:3030"},
+    {"name": "EU 1", "ws": "ws://65.75.201.11:3030/ws", "api": "http://65.75.201.11:3030"},
 ]
 
 @app.route('/')

@@ -290,6 +290,18 @@
             statusEl.className = 'status';
             statusText.textContent = `Connexion à ${relay.name}...`;
             
+            // Vérifier si on est en HTTPS avec un relais ws://
+            const isHttps = window.location.protocol === 'https:';
+            const isWs = relay.ws.startsWith('ws://');
+            
+            if (isHttps && isWs) {
+                statusEl.className = 'status error';
+                statusText.innerHTML = `❌ <strong>Mixed Content</strong> : Le site est en HTTPS mais le relais en ws://<br>
+                    <small>Solution : Ajoutez SSL au relais ou utilisez Cloudflare</small>`;
+                console.error('Mixed content blocked: HTTPS page cannot connect to ws:// WebSocket');
+                return;
+            }
+            
             try {
                 ws = new WebSocket(relay.ws);
                 
@@ -311,21 +323,23 @@
                     }
                 };
                 
-                ws.onclose = () => {
+                ws.onclose = (e) => {
                     connected = false;
                     statusEl.className = 'status error';
-                    statusText.textContent = '❌ Déconnecté';
+                    statusText.textContent = `❌ Déconnecté (code: ${e.code})`;
                     publishBtn.disabled = true;
                 };
                 
-                ws.onerror = () => {
+                ws.onerror = (err) => {
+                    console.error('WebSocket error:', err);
                     statusEl.className = 'status error';
-                    statusText.textContent = `❌ Erreur connexion ${relay.name}`;
+                    statusText.innerHTML = `❌ Erreur connexion ${relay.name}<br><small>Vérifiez que le relais est accessible</small>`;
                 };
                 
             } catch (err) {
+                console.error('WebSocket creation failed:', err);
                 statusEl.className = 'status error';
-                statusText.textContent = '❌ WebSocket non supporté';
+                statusText.textContent = '❌ Erreur: ' + err.message;
             }
         }
         

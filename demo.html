@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeta Network - Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui; background: #0f172a; color: white; padding: 1rem; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { color: #8b5cf6; margin-bottom: 1rem; }
+        .status { padding: 0.75rem; margin: 1rem 0; background: #1e293b; border-radius: 8px; }
+        .status.connected { background: #064e3b; }
+        .status.error { background: #7f1d1d; }
+        .compose { background: #1e293b; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+        input, textarea { width: 100%; background: #334155; border: none; padding: 0.5rem; border-radius: 4px; color: white; margin-bottom: 0.5rem; }
+        textarea { min-height: 60px; resize: vertical; }
+        button { background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .post { background: #1e293b; padding: 1rem; margin: 0.5rem 0; border-radius: 8px; }
+        .post-author { color: #a5b4fc; font-weight: 600; }
+        .post-time { color: #64748b; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ζ Zeta Network - Demo</h1>
+        
+        <div id="status" class="status">Initialisation...</div>
+        
+        <div id="app" style="display: none;">
+            <div class="compose">
+                <input type="text" id="author" placeholder="Pseudo" maxlength="20">
+                <textarea id="content" placeholder="Message..." maxlength="280"></textarea>
+                <button id="send" onclick="sendPost()">Envoyer</button>
+                <span id="chars" style="color: #64748b; margin-left: 1rem;">0/280</span>
+            </div>
+            <div id="feed"></div>
+        </div>
+    </div>
+
+    <script>
+        const RELAY = 'ws://65.75.201.11:3030/ws';
+        let ws = null;
+        const posts = new Map();
+        
+        const statusEl = document.getElementById('status');
+        const appEl = document.getElementById('app');
+        const feedEl = document.getElementById('feed');
+        const authorEl = document.getElementById('author');
+        const contentEl = document.getElementById('content');
+        const sendBtn = document.getElementById('send');
+        const charsEl = document.getElementById('chars');
+        
+        // Charger pseudo
+        authorEl.value = localStorage.getItem('zeta_author') || '';
+        authorEl.oninput = () => localStorage.setItem('zeta_author', authorEl.value);
+        
+        // Compteur caractères
+        contentEl.oninput = () => {
+            const len = contentEl.value.length;
+            charsEl.textContent = `${len}/280`;
+            charsEl.style.color = len > 250 ? '#f59e0b' : '#64748b';
+            sendBtn.disabled = len === 0 || len > 280 || !ws;
+        };
+        
+        function connect() {
+            statusEl.textContent = 'Connexion au relais...';
+            statusEl.className = 'status';
+            
+            ws = new WebSocket(RELAY);
+            
+            ws.onopen = () => {
+                statusEl.textContent = '✅ Connecté au relais !';
+                statusEl.className = 'status connected';
+                appEl.style.display = 'block';
+            };
+            
+            ws.onmessage = (e) => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    
+                    if (msg.type === 'init' && msg.posts) {
+                        msg.posts.forEach(addPost);
+                    } else if (msg.type === 'new_post' && msg.post) {
+                        addPost(msg.post);
+                    } else if (msg.type === 'post' && msg.data) {
+                        addPost(msg.data);
+                    }
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+            
+            ws.onerror = () => {
+                statusEl.textContent = '❌ Erreur de connexion';
+                statusEl.className = 'status error';
+            };
+            
+            ws.onclose = () => {
+                statusEl.textContent = '🔌 Déconnecté';
+                statusEl.className = 'status';
+                sendBtn.disabled = true;
+                setTimeout(connect, 3000);
+            };
+        }
+        
+        function addPost(post) {
+            if (posts.has(post.id)) return;
+            posts.set(post.id, post);
+            
+            const el = document.createElement('div');
+            el.className = 'post';
+            
+            const time = new Date(post.timestamp).toLocaleTimeString('fr-FR');
+            el.innerHTML = `
+                <div><span class="post-author">${escapeHtml(post.author_name || post.author)}</span> <span class="post-time">${time}</span></div>
+                <div style="margin-top: 0.5rem;">${escapeHtml(post.content)}</div>
+            `;
+            
+            feedEl.insertBefore(el, feedEl.firstChild);
+        }
+        
+        function sendPost() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            
+            const content = contentEl.value.trim();
+            if (!content || content.length > 280) return;
+            
+            const post = {
+                type: 'post',
+                data: {
+                    id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+                    author: authorEl.value.trim() || 'Anonyme',
+                    content: content,
+                    timestamp: Date.now()
+                }
+            };
+            
+            ws.send(JSON.stringify(post));
+            contentEl.value = '';
+            contentEl.oninput();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Enter pour envoyer
+        contentEl.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendPost();
+            }
+        };
+        
+        connect();
+    </script>
+</body>
+</html>

@@ -136,8 +136,8 @@
             <h2>Prérequis</h2>
             <ul>
                 <li>Un VPS Linux (Ubuntu/Debian) - à partir de 5€/mois</li>
-                <li>Ports 4001 et 3030 ouverts</li>
-                <li>Rien d'autre ! Le script installe tout</li>
+                <li>Accès root (sudo)</li>
+                <li>C'est tout ! Le script gère tout automatiquement</li>
             </ul>
         </div>
         
@@ -165,12 +165,17 @@
         <div class="step">
             <span class="step-number">✓</span>
             <h3>C'est tout !</h3>
-            <p>Le script télécharge le binaire (ou compile si nécessaire) et démarre le relais automatiquement.</p>
-            <p>À la fin, vous verrez votre adresse bootstrap à partager.</p>
+            <p>Le script fait tout automatiquement :</p>
+            <ul style="color: #94a3b8; margin-top: 0.5rem; padding-left: 1.5rem;">
+                <li>Télécharge ou compile le relais</li>
+                <li>Configure HTTPS automatiquement (Cloudflare Tunnel)</li>
+                <li>Démarre le service en arrière-plan</li>
+                <li>Affiche l'URL <code>wss://</code> à partager</li>
+            </ul>
         </div>
         
         <div class="info-box">
-            <strong>💡 Astuce :</strong> Le relais sera accessible sur <code>http://VOTRE_IP:3030</code>. Partagez cette adresse pour que d'autres puissent s'y connecter !
+            <strong>💡 Résultat :</strong> Vous obtiendrez une URL du type <code>wss://xxx-yyy.trycloudflare.com/ws</code> que vous pouvez partager pour que d'autres se connectent à votre relais !
         </div>
         
         <div class="step">
