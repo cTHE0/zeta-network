@@ -236,23 +236,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             Some(msg) = ws_to_p2p_rx.recv() => {
                 if let Ok(json) = serde_json::to_vec(&msg) {
-                    if let Err(e) = swarm.behaviour_mut().gossipsub.publish(topic.clone(), json) {
-                        error!("❌ Erreur publication: {:?}", e);
-                    } else if let NetworkMessage::Post(ref p) = msg {
-                        network_state.add_post(p.clone()).await;
+                    // Publier sur Gossipsub (même si pas de peers, on log juste)
+                    match swarm.behaviour_mut().gossipsub.publish(topic.clone(), json) {
+                        Ok(_) => {
+                            if let NetworkMessage::Post(ref p) = msg {
+                                info!("📤 Post propagé sur Gossipsub: {}", p.content);
+                            }
+                        }
+                        Err(e) => {
+                            // InsufficientPeers est normal au démarrage
+                            warn!("⚠️ Gossipsub publish: {:?}", e);
+                        }
                     }
+                    // Note: add_post déjà appelé dans web_server.rs, pas besoin ici
                 }
             }
 
             Some(post) = post_rx.recv() => {
                 let msg = NetworkMessage::Post(post.clone());
                 if let Ok(json) = serde_json::to_vec(&msg) {
-                    if let Err(e) = swarm.behaviour_mut().gossipsub.publish(topic.clone(), json) {
-                        error!("❌ Erreur publication: {:?}", e);
-                    } else {
-                        info!("📤 Post publié: {}", post.content);
-                        network_state.add_post(post).await;
+                    match swarm.behaviour_mut().gossipsub.publish(topic.clone(), json) {
+                        Ok(_) => info!("📤 Post publié via REST: {}", post.content),
+                        Err(e) => warn!("⚠️ Gossipsub publish: {:?}", e),
                     }
+                    // Toujours ajouter localement même si Gossipsub échoue
+                    network_state.add_post(post).await;
                 }
             }
 
@@ -269,14 +277,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
 
                     SwarmEvent::Behaviour(ZetaEvent::Gossipsub(gossipsub::Event::Message {
-                        message, ..
+                        message, propagation_source, ..
                     })) => {
                         if let Ok(msg) = serde_json::from_slice::<NetworkMessage>(&message.data) {
                             if let NetworkMessage::Post(post) = msg {
-                                info!("📨 Post de {}: {}", post.author_name, post.content);
+                                info!("📨 Post reçu via Gossipsub de {}: {} - \"{}\"", 
+                                      propagation_source, post.author_name, post.content);
                                 network_state.add_post(post).await;
                             }
                         }
+                    }
+                    
+                    SwarmEvent::Behaviour(ZetaEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic })) => {
+                        info!("🔔 Peer {} s'est abonné au topic {}", peer_id, topic);
+                    }
+                    
+                    SwarmEvent::Behaviour(ZetaEvent::Gossipsub(gossipsub::Event::Unsubscribed { peer_id, topic })) => {
+                        info!("🔕 Peer {} s'est désabonné du topic {}", peer_id, topic);
                     }
 
                     SwarmEvent::Behaviour(ZetaEvent::Mdns(mdns::Event::Discovered(list))) => {

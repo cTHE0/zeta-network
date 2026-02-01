@@ -407,9 +407,16 @@
         }
 
         function extractImageUrl(text) {
-            const imageRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/i;
+            if (!text) return null;
+            // Support more image formats and CDN URLs
+            const imageRegex = /(https?:\/\/[^\s<>"']+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|ico)(?:\?[^\s<>"']*)?)/i;
             const match = text.match(imageRegex);
-            return match ? match[1] : null;
+            if (match) return match[1];
+            
+            // Also check for common image hosting patterns without extensions
+            const cdnRegex = /(https?:\/\/(?:i\.imgur\.com|pbs\.twimg\.com|cdn\.discordapp\.com|media\.discordapp\.net|i\.redd\.it)[^\s<>"']+)/i;
+            const cdnMatch = text.match(cdnRegex);
+            return cdnMatch ? cdnMatch[1] : null;
         }
 
         function linkify(text) {
