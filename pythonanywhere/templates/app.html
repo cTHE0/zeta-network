@@ -46,7 +46,6 @@
             gap: 10px;
             font-size: 20px;
             font-weight: 700;
-            letter-spacing: -0.5px;
             color: #e7e9ea;
         }
         
@@ -70,6 +69,7 @@
             gap: 8px;
             font-size: 13px;
             color: #71767b;
+            padding: 12px 0;
         }
         
         .status-indicator {
@@ -94,12 +94,11 @@
         .network-stats {
             display: flex;
             gap: 16px;
-            padding: 8px 0 12px;
+            padding: 8px 16px 12px;
             font-size: 13px;
             color: #71767b;
             border-bottom: 1px solid #2f3336;
         }
-        .network-stats span { display: flex; align-items: center; gap: 4px; }
         
         .compose {
             border-bottom: 1px solid #2f3336;
@@ -223,6 +222,13 @@
             border-top: 1px solid #2f3336;
         }
         .footer a { color: #1d9bf0; text-decoration: none; }
+        
+        .empty {
+            text-align: center;
+            padding: 48px 16px;
+            color: #71767b;
+            font-size: 15px;
+        }
     </style>
 </head>
 <body>
@@ -256,7 +262,9 @@
                 </div>
             </div>
             
-            <div id="feed" class="feed"></div>
+            <div id="feed" class="feed">
+                <div class="empty">No messages yet</div>
+            </div>
         </div>
         
         <footer class="footer">
@@ -266,8 +274,8 @@
 
     <script>
         // === Configuration Multi-Relais ===
-        const connections = new Map(); // relay.name -> {ws, relay, connected}
-        const postIds = new Set(); // Déduplication
+        const connections = new Map();
+        const postIds = new Set();
         let allRelays = [];
         
         const statusEl = document.getElementById('status');
@@ -282,7 +290,7 @@
         
         authorInput.value = localStorage.getItem('zeta_author') || '';
         
-        // === Init - Connexion à TOUS les relais ===
+        // === Init ===
         async function init() {
             try {
                 const res = await fetch('/api/relays');
@@ -290,11 +298,11 @@
                 
                 if (allRelays.length === 0) {
                     statusEl.classList.add('error');
-                    statusText.textContent = '⚠️ Aucun relais configuré';
+                    statusText.textContent = 'No relays configured';
                     return;
                 }
                 
-                statusText.textContent = `Connexion à ${allRelays.length} relais...`;
+                statusText.textContent = `Connecting to ${allRelays.length} relays...`;
                 appEl.style.display = 'block';
                 networkStats.style.display = 'flex';
                 
@@ -302,20 +310,20 @@
                 
             } catch (err) {
                 statusEl.classList.add('error');
-                statusText.textContent = '❌ Erreur: ' + err.message;
+                statusText.textContent = 'Error: ' + err.message;
                 console.error(err);
             }
         }
         
         // === Connexion à un relais ===
         function connectToRelay(relay) {
-            // Redirection HTTPS → HTTP
+            // Redirection HTTPS → HTTP (mixed content workaround)
             const isHttps = window.location.protocol === 'https:';
             const isWs = relay.ws.startsWith('ws://');
             
             if (isHttps && isWs) {
                 const url = relay.api || relay.ws.replace('ws://', 'http://').replace('/ws', '');
-                statusText.innerHTML = `🔄 Redirection vers ${relay.name}...`;
+                statusText.innerHTML = `Redirecting to ${relay.name}...`;
                 setTimeout(() => window.location.href = url, 1000);
                 return;
             }
@@ -326,13 +334,12 @@
                 ws.onopen = () => {
                     connections.set(relay.name, {ws, relay, connected: true});
                     updateStatus();
-                    console.log(`✅ ${relay.name}`);
+                    console.log(`Connected to ${relay.name}`);
                 };
                 
                 ws.onmessage = (e) => {
                     try {
                         const msg = JSON.parse(e.data);
-                        console.log('📨 Message reçu:', msg);
                         handleMessage(msg);
                     } catch (err) {
                         console.error('Parse error:', err);
@@ -343,52 +350,50 @@
                     const conn = connections.get(relay.name);
                     if (conn) conn.connected = false;
                     updateStatus();
-                    console.log(`❌ Déconnecté de ${relay.name}`);
+                    console.log(`Disconnected from ${relay.name}`);
                     setTimeout(() => connectToRelay(relay), 5000);
                 };
                 
-                ws.onerror = () => console.error(`Erreur ${relay.name}`);
+                ws.onerror = () => console.error(`Error on ${relay.name}`);
                 
             } catch (err) {
-                console.error(`Impossible de se connecter à ${relay.name}:`, err);
+                console.error(`Cannot connect to ${relay.name}:`, err);
             }
         }
         
-        // === Mise à jour statut ===
+        // === Status update ===
         function updateStatus() {
             const connected = Array.from(connections.values()).filter(c => c.connected).length;
             const total = allRelays.length;
-            Disconnected (0/${total} relays)`;
+            
+            document.getElementById('relaysCount').textContent = connected;
+            
+            if (connected === 0) {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = `<div class="status-indicator"></div><span>Disconnected (0/${total} relays)</span>`;
                 publishBtn.disabled = true;
             } else if (connected === total) {
                 statusEl.className = 'status connected';
-                statusText.textContent = `Connected to ${connected} relays`;
-                publishBtn.disabled = false;
+                statusEl.innerHTML = `<div class="status-indicator"></div><span>Connected to ${connected} relays</span>`;
+                updatePublishBtn();
             } else {
-                statusEl.className = 'status';
-                statusText.textContent = `${connected}/${total} relays active`;
-                publishBtn.disabled = false;
+                statusEl.className = 'status connected';
+                statusEl.innerHTML = `<div class="status-indicator"></div><span>${connected}/${total} relays active</span>`;
+                updatePublishBtn();
             }
         }
         
         // === Messages ===
         function handleMessage(msg) {
-            console.log('🔍 Traitement message type:', msg.type);
             if (msg.type === 'new_post' && msg.post) {
-                console.log('  → new_post détecté:', msg.post);
                 addPost(msg.post);
-            } else if (msg.type === 'post' && msg.data) {
-                console.log('  → post détecté:', msg.data);
-                addPost(msg.data);
             } else if (msg.type === 'init' && msg.posts) {
-                console.log('  → init avec', msg.posts.length, 'posts');
                 msg.posts.forEach(p => addPost(p));
-            } else {
-                console.log('  → type non géré');
             }
         }
         
         function extractImageUrl(text) {
+            if (!text) return null;
             const imageRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?)/i;
             const match = text.match(imageRegex);
             return match ? match[1] : null;
@@ -400,17 +405,17 @@
         }
         
         function addPost(post) {
-            console.log('➕ Ajout post:', post.id, post.content);
-            if (postIds.has(post.id)) {
-                console.log('  ⚠️ Post déjà présent (dédupliqué)');
-                return;
-            }
+            if (!post || !post.id || postIds.has(post.id)) return;
             postIds.add(post.id);
             
             document.getElementById('postsCount').textContent = postIds.size;
             
+            // Remove empty state
+            const empty = feedEl.querySelector('.empty');
+            if (empty) empty.remove();
+            
             const imageUrl = extractImageUrl(post.content);
-            const textContent = imageUrl ? post.content.replace(imageUrl, '').trim() : post.content;
+            const textContent = imageUrl ? post.content.replace(imageUrl, '').trim() : (post.content || '');
             
             const el = document.createElement('div');
             el.className = 'post';
@@ -421,16 +426,11 @@
                 </div>
                 <div class="post-content">${linkify(escapeHtml(textContent))}</div>
                 ${imageUrl ? `<img src="${imageUrl}" class="post-image" onclick="window.open('${imageUrl}', '_blank')" loading="lazy">` : ''}
-                <div class="post-header">
-                    <span class="post-author">${escapeHtml(post.author_name || post.author || 'Anonyme')}</span>
-                    <span class="post-time">${formatTime(post.timestamp)}</span>
-                </div>
-                <div class="post-content">${escapeHtml(post.content)}</div>
             `;
             feedEl.insertBefore(el, feedEl.firstChild);
         }
         
-        // === Publication (envoi à TOUS les relais connectés) ===
+        // === Publication ===
         contentInput.addEventListener('input', () => {
             const len = contentInput.value.length;
             charCount.textContent = `${len}/280`;
@@ -454,27 +454,16 @@
             
             const post = {
                 type: 'post',
-                data: {
-                    id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2),
-                    author: authorInput.value.trim() || 'Anonyme',
-                    content: content,
-                    timestamp: Date.now()
-                }
+                content: content,
+                author_name: authorInput.value.trim() || 'Anonymous'
             };
             
-            console.log('📤 Envoi du post:', post);
-            
-            // Envoyer à TOUS les relais connectés
-            const sent = [];
+            // Send to ALL connected relays
             connections.forEach((conn, name) => {
                 if (conn.connected && conn.ws.readyState === WebSocket.OPEN) {
-                    console.log(`  → Envoi à ${name}`);
                     conn.ws.send(JSON.stringify(post));
-                    sent.push(name);
                 }
             });
-            
-            console.log(`📤 Post envoyé à ${sent.length} relais: ${sent.join(', ')}`);
             
             contentInput.value = '';
             charCount.textContent = '0/280';
@@ -485,17 +474,18 @@
         // === Utils ===
         function escapeHtml(text) {
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = text || '';
             return div.innerHTML;
         }
         
         function formatTime(ts) {
-            const d = new Date(ts);
+            if (!ts) return '';
+            const d = new Date(ts * 1000);
             const diff = (Date.now() - d) / 1000;
-            if (diff < 60) return 'à l\'instant';
-            if (diff < 3600) return `il y a ${Math.floor(diff/60)}min`;
-            if (diff < 86400) return `il y a ${Math.floor(diff/3600)}h`;
-            return d.toLocaleDateString('fr-FR');
+            if (diff < 60) return 'now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+            return d.toLocaleDateString();
         }
         
         init();
