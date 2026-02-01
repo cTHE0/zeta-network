@@ -10,10 +10,10 @@ from flask import Flask, render_template, jsonify
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zeta-dev-key')
 
-# Liste des relais publics - METTEZ VOS RELAIS ICI
-# Après avoir lancé install-relay.sh sur un VPS, ajoutez son URL wss://
+# Liste des relais publics
+# Après avoir lancé install-relay.sh sur un VPS, ajoutez l'IP:port
 RELAYS = [
-    {"name": "EU 1", "ws": "wss://simpsons-penetration-jackets-lightnings.trycloudflare.com/ws", "api": "https://simpsons-penetration-jackets-lightnings.trycloudflare.com"},
+    {"name": "EU 1", "ws": "ws://65.75.201.11:3030/ws", "api": "http://65.75.201.11:3030"},
 ]
 
 @app.route('/')

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Zeta Network - Installation Relais
-# Usage: git clone https://github.com/cTHE0/zeta-network.git && cd zeta-network/rust-node && sudo ./install-relay.sh
+# Usage: sudo ./install-relay.sh
 
 set -e
 cd "$(dirname "$0")"
@@ -19,13 +19,11 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 mkdir -p "$INSTALL_DIR"
-
-# Arrêter les services existants
-systemctl stop zeta-relay zeta-tunnel 2>/dev/null || true
+systemctl stop zeta-relay 2>/dev/null || true
 sleep 1
 
-# === ÉTAPE 1 : BINAIRE ===
-echo "📦 [1/3] Installation du relais..."
+# === BINAIRE ===
+echo "📦 Installation du relais..."
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -46,26 +44,11 @@ else
     cargo build --release && cp target/release/zeta-relay "$INSTALL_DIR/"
 fi
 
-# === ÉTAPE 2 : CLOUDFLARED ===
+# === SERVICE ===
 echo ""
-echo "🔒 [2/3] Configuration HTTPS (Cloudflare Tunnel)..."
+echo "⚙️  Configuration du service..."
 
-if ! command -v cloudflared &>/dev/null; then
-    case "$ARCH" in
-        x86_64) CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" ;;
-        aarch64|arm64) CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" ;;
-        armv7l) CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm" ;;
-    esac
-    curl -fsSL "$CF_URL" -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
-fi
-echo "   ✅ Cloudflare Tunnel prêt"
-
-# === ÉTAPE 3 : SERVICES ===
-echo ""
-echo "⚙️  [3/3] Démarrage des services..."
-
-# Service relais
-cat > /etc/systemd/system/zeta-relay.service << 'EOF'
+cat > /etc/systemd/system/zeta-relay.service << 'SERVICEEOF'
 [Unit]
 Description=Zeta Network Relay
 After=network.target
@@ -78,80 +61,29 @@ RestartSec=3
 Environment=RUST_LOG=info
 [Install]
 WantedBy=multi-user.target
-EOF
+SERVICEEOF
 
-# Service tunnel (capture l'URL au démarrage)
-cat > /etc/systemd/system/zeta-tunnel.service << 'EOF'
-[Unit]
-Description=Zeta HTTPS Tunnel
-After=zeta-relay.service
-Requires=zeta-relay.service
-[Service]
-Type=simple
-ExecStart=/bin/bash -c '/usr/local/bin/cloudflared tunnel --url http://localhost:3030 2>&1 | tee /opt/zeta-relay/tunnel.log'
-Restart=always
-RestartSec=10
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Ouvrir les ports
-command -v ufw &>/dev/null && { ufw allow 4001/tcp &>/dev/null || true; }
+command -v ufw &>/dev/null && { ufw allow 3030/tcp &>/dev/null; ufw allow 4001/tcp &>/dev/null; } || true
 
 systemctl daemon-reload
-systemctl enable zeta-relay zeta-tunnel &>/dev/null
-systemctl restart zeta-relay
+systemctl enable zeta-relay
+systemctl start zeta-relay
+
 sleep 2
-systemctl restart zeta-tunnel
 
-# Attendre l'URL du tunnel
-echo ""
-echo "   ⏳ Attente du tunnel HTTPS..."
-TUNNEL_URL=""
-for i in {1..30}; do
-    if [ -f /opt/zeta-relay/tunnel.log ]; then
-        TUNNEL_URL=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /opt/zeta-relay/tunnel.log 2>/dev/null | head -1)
-        [ -n "$TUNNEL_URL" ] && break
-    fi
-    sleep 1
-done
-
-# Récupérer infos
-PEER_ID=$(curl -s http://localhost:3030/api/network 2>/dev/null | grep -oP '"local_peer_id":"\K[^"]+' || echo "inconnu")
+# === RÉSULTAT ===
+IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 
 echo ""
-echo "  ╔═══════════════════════════════════════════════════════════════╗"
-echo "  ║                    ✅ RELAIS OPÉRATIONNEL                     ║"
-echo "  ╚═══════════════════════════════════════════════════════════════╝"
+echo "===================================="
+echo "✅ RELAIS ZETA INSTALLÉ !"
+echo "===================================="
 echo ""
-
-if [ -n "$TUNNEL_URL" ]; then
-    WS_URL="${TUNNEL_URL/https:/wss:}/ws"
-    echo "$TUNNEL_URL" > "$INSTALL_DIR/url.txt"
-    echo "$WS_URL" > "$INSTALL_DIR/ws-url.txt"
-    
-    echo "  🌐 URL HTTPS  : $TUNNEL_URL"
-    echo "  🔌 WebSocket  : $WS_URL"
-    echo ""
-    echo "  ┌─────────────────────────────────────────────────────────────┐"
-    echo "  │ 📋 COPIEZ CETTE LIGNE pour l'ajouter au réseau :           │"
-    echo "  └─────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo "  {\"name\": \"Mon-Relais\", \"ws\": \"$WS_URL\", \"api\": \"$TUNNEL_URL\"}"
-    echo ""
-else
-    echo "  ⚠️  Tunnel pas encore prêt. Vérifiez dans 1 minute :"
-    echo "     cat /opt/zeta-relay/url.txt"
-    echo ""
-    echo "  Ou relancez : sudo systemctl restart zeta-tunnel"
-fi
-
-echo "  🔑 Peer ID : $PEER_ID"
+echo "🌍 Interface web : http://$IP:3030"
 echo ""
-echo "  ─────────────────────────────────────────────────────────────────"
-echo "  📝 Commandes utiles :"
-echo "     systemctl status zeta-relay    # État du relais"
-echo "     systemctl status zeta-tunnel   # État du tunnel"
-echo "     cat /opt/zeta-relay/ws-url.txt # URL WebSocket"
-echo "     journalctl -u zeta-relay -f    # Logs"
+echo "Partagez cette URL pour que d'autres se connectent !"
+echo ""
+echo "📋 Commandes utiles :"
+echo "   systemctl status zeta-relay"
+echo "   journalctl -u zeta-relay -f"
 echo ""

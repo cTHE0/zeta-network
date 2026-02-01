@@ -290,15 +290,16 @@
             statusEl.className = 'status';
             statusText.textContent = `Connexion à ${relay.name}...`;
             
-            // Vérifier si on est en HTTPS avec un relais ws://
+            // Si HTTPS et relais ws:// → rediriger vers le relais directement
             const isHttps = window.location.protocol === 'https:';
             const isWs = relay.ws.startsWith('ws://');
             
             if (isHttps && isWs) {
-                statusEl.className = 'status error';
-                statusText.innerHTML = `❌ <strong>Mixed Content</strong> : Le site est en HTTPS mais le relais en ws://<br>
-                    <small>Solution : Ajoutez SSL au relais ou utilisez Cloudflare</small>`;
-                console.error('Mixed content blocked: HTTPS page cannot connect to ws:// WebSocket');
+                // Extraire l'URL HTTP du relais depuis l'API
+                const relayUrl = relay.api || relay.ws.replace('ws://', 'http://').replace('/ws', '');
+                statusEl.className = 'status';
+                statusText.innerHTML = `🔄 Redirection vers le relais...<br><small>Le relais utilise sa propre interface</small>`;
+                setTimeout(() => window.location.href = relayUrl, 1000);
                 return;
             }
             
