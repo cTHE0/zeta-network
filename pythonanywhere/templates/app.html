@@ -116,37 +116,6 @@
         .post-time { color: #64748b; font-size: 0.85rem; }
         .post-content { line-height: 1.5; word-wrap: break-word; }
         
-        .relay-select {
-            background: #1e293b;
-            border-radius: 10px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-        .relay-select h3 { margin-bottom: 0.5rem; font-size: 1rem; }
-        .relay-list { display: flex; flex-direction: column; gap: 0.5rem; }
-        .relay-btn {
-            background: #334155;
-            border: 2px solid transparent;
-            padding: 0.7rem;
-            border-radius: 8px;
-            color: white;
-            cursor: pointer;
-            text-align: left;
-            transition: border-color 0.2s;
-        }
-        .relay-btn:hover { border-color: #6366f1; }
-        .relay-btn.active { border-color: #10b981; background: #064e3b; }
-        
-        .info-box {
-            background: #1e293b;
-            border-radius: 10px;
-            padding: 1rem;
-            margin: 1rem 0;
-            text-align: center;
-        }
-        .info-box p { color: #94a3b8; margin-bottom: 0.5rem; }
-        .info-box a { color: #8b5cf6; }
-        
         .network-stats {
             display: flex;
             justify-content: center;
@@ -175,23 +144,12 @@
         
         <div id="status" class="status">
             <div class="spinner"></div>
-            <span id="statusText">Chargement des relais...</span>
+            <span id="statusText">Chargement...</span>
         </div>
         
         <div id="networkStats" class="network-stats" style="display: none;">
-            <div class="stat"><div class="stat-value" id="peersCount">0</div>pairs</div>
+            <div class="stat"><div class="stat-value" id="relaysCount">0</div>relais</div>
             <div class="stat"><div class="stat-value" id="postsCount">0</div>posts</div>
-        </div>
-        
-        <div id="relaySection" class="relay-select" style="display: none;">
-            <h3>📡 Choisissez un relais</h3>
-            <div id="relayList" class="relay-list"></div>
-        </div>
-        
-        <div id="noRelays" class="info-box" style="display: none;">
-            <p>⚠️ Aucun relais disponible</p>
-            <p>Le réseau a besoin de relais pour fonctionner.</p>
-            <p><a href="/install">Hébergez un relais</a> pour aider le réseau !</p>
         </div>
         
         <div id="app" style="display: none;">
@@ -213,18 +171,13 @@
     </div>
 
     <script>
-        // === Configuration ===
-        let ws = null;
-        let connected = false;
-        let posts = [];
-        let currentRelay = null;
+        // === Configuration Multi-Relais ===
+        const connections = new Map(); // relay.name -> {ws, relay, connected}
+        const postIds = new Set(); // Déduplication
+        let allRelays = [];
         
-        // === Éléments DOM ===
         const statusEl = document.getElementById('status');
         const statusText = document.getElementById('statusText');
-        const relaySection = document.getElementById('relaySection');
-        const relayList = document.getElementById('relayList');
-        const noRelaysEl = document.getElementById('noRelays');
         const appEl = document.getElementById('app');
         const feedEl = document.getElementById('feed');
         const networkStats = document.getElementById('networkStats');
@@ -233,86 +186,53 @@
         const charCount = document.getElementById('charCount');
         const publishBtn = document.getElementById('publishBtn');
         
-        // Charger le pseudo sauvegardé
         authorInput.value = localStorage.getItem('zeta_author') || '';
         
-        // === Initialisation ===
+        // === Init - Connexion à TOUS les relais ===
         async function init() {
             try {
                 const res = await fetch('/api/relays');
-                const relays = await res.json();
+                allRelays = await res.json();
                 
-                if (relays.length === 0) {
+                if (allRelays.length === 0) {
                     statusEl.classList.add('error');
                     statusText.textContent = '⚠️ Aucun relais configuré';
-                    noRelaysEl.style.display = 'block';
                     return;
                 }
                 
-                // Afficher la liste des relais
-                statusEl.style.display = 'none';
-                relaySection.style.display = 'block';
+                statusText.textContent = `Connexion à ${allRelays.length} relais...`;
+                appEl.style.display = 'block';
+                networkStats.style.display = 'flex';
                 
-                relays.forEach((relay, i) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'relay-btn';
-                    btn.innerHTML = `<strong>${relay.name}</strong><br><small>${relay.ws}</small>`;
-                    btn.onclick = () => connectToRelay(relay, btn);
-                    relayList.appendChild(btn);
-                });
-                
-                // Auto-connecter au premier relais
-                const firstBtn = relayList.querySelector('.relay-btn');
-                if (firstBtn) {
-                    connectToRelay(relays[0], firstBtn);
-                }
+                allRelays.forEach(relay => connectToRelay(relay));
                 
             } catch (err) {
                 statusEl.classList.add('error');
-                statusText.textContent = '❌ Erreur de chargement';
+                statusText.textContent = '❌ Erreur: ' + err.message;
                 console.error(err);
             }
         }
         
-        // === Connexion WebSocket ===
-        function connectToRelay(relay, btn) {
-            // Déconnecter l'ancien
-            if (ws) {
-                ws.close();
-            }
-            
-            // Mettre à jour UI
-            document.querySelectorAll('.relay-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentRelay = relay;
-            
-            statusEl.style.display = 'flex';
-            statusEl.className = 'status';
-            statusText.textContent = `Connexion à ${relay.name}...`;
-            
-            // Si HTTPS et relais ws:// → rediriger vers le relais directement
+        // === Connexion à un relais ===
+        function connectToRelay(relay) {
+            // Redirection HTTPS → HTTP
             const isHttps = window.location.protocol === 'https:';
             const isWs = relay.ws.startsWith('ws://');
             
             if (isHttps && isWs) {
-                // Extraire l'URL HTTP du relais depuis l'API
-                const relayUrl = relay.api || relay.ws.replace('ws://', 'http://').replace('/ws', '');
-                statusEl.className = 'status';
-                statusText.innerHTML = `🔄 Redirection vers le relais...<br><small>Le relais utilise sa propre interface</small>`;
-                setTimeout(() => window.location.href = relayUrl, 1000);
+                const url = relay.api || relay.ws.replace('ws://', 'http://').replace('/ws', '');
+                statusText.innerHTML = `🔄 Redirection vers ${relay.name}...`;
+                setTimeout(() => window.location.href = url, 1000);
                 return;
             }
             
             try {
-                ws = new WebSocket(relay.ws);
+                const ws = new WebSocket(relay.ws);
                 
                 ws.onopen = () => {
-                    connected = true;
-                    statusEl.classList.add('connected');
-                    statusText.innerHTML = `✅ Connecté à <strong>${relay.name}</strong>`;
-                    appEl.style.display = 'block';
-                    networkStats.style.display = 'flex';
-                    updatePublishBtn();
+                    connections.set(relay.name, {ws, relay, connected: true});
+                    updateStatus();
+                    console.log(`✅ ${relay.name}`);
                 };
                 
                 ws.onmessage = (e) => {
@@ -324,68 +244,73 @@
                     }
                 };
                 
-                ws.onclose = (e) => {
-                    connected = false;
-                    statusEl.className = 'status error';
-                    statusText.textContent = `❌ Déconnecté (code: ${e.code})`;
-                    publishBtn.disabled = true;
+                ws.onclose = () => {
+                    const conn = connections.get(relay.name);
+                    if (conn) conn.connected = false;
+                    updateStatus();
+                    console.log(`❌ Déconnecté de ${relay.name}`);
+                    setTimeout(() => connectToRelay(relay), 5000);
                 };
                 
-                ws.onerror = (err) => {
-                    console.error('WebSocket error:', err);
-                    statusEl.className = 'status error';
-                    statusText.innerHTML = `❌ Erreur connexion ${relay.name}<br><small>Vérifiez que le relais est accessible</small>`;
-                };
+                ws.onerror = () => console.error(`Erreur ${relay.name}`);
                 
             } catch (err) {
-                console.error('WebSocket creation failed:', err);
+                console.error(`Impossible de se connecter à ${relay.name}:`, err);
+            }
+        }
+        
+        // === Mise à jour statut ===
+        function updateStatus() {
+            const connected = Array.from(connections.values()).filter(c => c.connected).length;
+            const total = allRelays.length;
+            
+            document.getElementById('relaysCount').textContent = connected;
+            
+            if (connected === 0) {
                 statusEl.className = 'status error';
-                statusText.textContent = '❌ Erreur: ' + err.message;
+                statusText.textContent = `❌ Déconnecté (0/${total} relais)`;
+                publishBtn.disabled = true;
+            } else if (connected === total) {
+                statusEl.className = 'status connected';
+                statusText.textContent = `✅ Connecté à ${connected} relais`;
+                publishBtn.disabled = false;
+            } else {
+                statusEl.className = 'status';
+                statusText.textContent = `🔄 ${connected}/${total} relais actifs`;
+                publishBtn.disabled = false;
             }
         }
         
         // === Messages ===
         function handleMessage(msg) {
-            // Format du relais Rust: {"type": "new_post", "post": {...}}
-            // Ou format navigateur: {"type": "post", "data": {...}}
             if (msg.type === 'new_post' && msg.post) {
                 addPost(msg.post);
             } else if (msg.type === 'post' && msg.data) {
                 addPost(msg.data);
-            } else if (msg.type === 'init') {
-                // État initial du relais
-                if (msg.posts) {
-                    msg.posts.forEach(p => addPost(p));
-                }
-                if (msg.peers) {
-                    document.getElementById('peersCount').textContent = msg.peers.length;
-                }
-            } else if (msg.type === 'peer_joined' || msg.type === 'peer_left') {
-                // Mettre à jour le compteur (on pourrait demander au relais)
+            } else if (msg.type === 'init' && msg.posts) {
+                msg.posts.forEach(p => addPost(p));
             }
         }
         
         function addPost(post) {
-            // Éviter doublons
-            if (posts.find(p => p.id === post.id)) return;
+            if (postIds.has(post.id)) return; // Déduplication
+            postIds.add(post.id);
             
-            posts.unshift(post);
-            document.getElementById('postsCount').textContent = posts.length;
+            document.getElementById('postsCount').textContent = postIds.size;
             
             const el = document.createElement('div');
             el.className = 'post';
             el.innerHTML = `
                 <div class="post-header">
-                    <span class="post-author">${escapeHtml(post.author || 'Anonyme')}</span>
+                    <span class="post-author">${escapeHtml(post.author_name || post.author || 'Anonyme')}</span>
                     <span class="post-time">${formatTime(post.timestamp)}</span>
                 </div>
                 <div class="post-content">${escapeHtml(post.content)}</div>
             `;
-            
             feedEl.insertBefore(el, feedEl.firstChild);
         }
         
-        // === Publication ===
+        // === Publication (envoi à TOUS les relais connectés) ===
         contentInput.addEventListener('input', () => {
             const len = contentInput.value.length;
             charCount.textContent = `${len}/280`;
@@ -399,16 +324,14 @@
         
         function updatePublishBtn() {
             const content = contentInput.value.trim();
-            publishBtn.disabled = !connected || content.length === 0 || content.length > 280;
+            const hasConnection = Array.from(connections.values()).some(c => c.connected);
+            publishBtn.disabled = !hasConnection || !content || content.length > 280;
         }
         
         publishBtn.addEventListener('click', () => {
-            if (!connected || !ws) return;
-            
             const content = contentInput.value.trim();
             if (!content || content.length > 280) return;
             
-            // Format compatible avec le relais Rust
             const post = {
                 type: 'post',
                 data: {
@@ -419,15 +342,24 @@
                 }
             };
             
-            ws.send(JSON.stringify(post));
-            // On n'ajoute pas localement - on attend le broadcast du relais
+            // Envoyer à TOUS les relais connectés
+            const sent = [];
+            connections.forEach((conn, name) => {
+                if (conn.connected && conn.ws.readyState === WebSocket.OPEN) {
+                    conn.ws.send(JSON.stringify(post));
+                    sent.push(name);
+                }
+            });
+            
+            console.log(`📤 Post envoyé à ${sent.length} relais: ${sent.join(', ')}`);
+            
             contentInput.value = '';
             charCount.textContent = '0/280';
             charCount.className = 'char-count';
             updatePublishBtn();
         });
         
-        // === Utilitaires ===
+        // === Utils ===
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -436,16 +368,13 @@
         
         function formatTime(ts) {
             const d = new Date(ts);
-            const now = new Date();
-            const diff = (now - d) / 1000;
-            
+            const diff = (Date.now() - d) / 1000;
             if (diff < 60) return 'à l\'instant';
             if (diff < 3600) return `il y a ${Math.floor(diff/60)}min`;
             if (diff < 86400) return `il y a ${Math.floor(diff/3600)}h`;
             return d.toLocaleDateString('fr-FR');
         }
         
-        // Démarrer
         init();
     </script>
 </body>
