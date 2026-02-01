@@ -238,6 +238,7 @@
                 ws.onmessage = (e) => {
                     try {
                         const msg = JSON.parse(e.data);
+                        console.log('📨 Message reçu:', msg);
                         handleMessage(msg);
                     } catch (err) {
                         console.error('Parse error:', err);
@@ -283,17 +284,27 @@
         
         // === Messages ===
         function handleMessage(msg) {
+            console.log('🔍 Traitement message type:', msg.type);
             if (msg.type === 'new_post' && msg.post) {
+                console.log('  → new_post détecté:', msg.post);
                 addPost(msg.post);
             } else if (msg.type === 'post' && msg.data) {
+                console.log('  → post détecté:', msg.data);
                 addPost(msg.data);
             } else if (msg.type === 'init' && msg.posts) {
+                console.log('  → init avec', msg.posts.length, 'posts');
                 msg.posts.forEach(p => addPost(p));
+            } else {
+                console.log('  → type non géré');
             }
         }
         
         function addPost(post) {
-            if (postIds.has(post.id)) return; // Déduplication
+            console.log('➕ Ajout post:', post.id, post.content);
+            if (postIds.has(post.id)) {
+                console.log('  ⚠️ Post déjà présent (dédupliqué)');
+                return; // Déduplication
+            }
             postIds.add(post.id);
             
             document.getElementById('postsCount').textContent = postIds.size;
@@ -342,10 +353,13 @@
                 }
             };
             
+            console.log('📤 Envoi du post:', post);
+            
             // Envoyer à TOUS les relais connectés
             const sent = [];
             connections.forEach((conn, name) => {
                 if (conn.connected && conn.ws.readyState === WebSocket.OPEN) {
+                    console.log(`  → Envoi à ${name}`);
                     conn.ws.send(JSON.stringify(post));
                     sent.push(name);
                 }
