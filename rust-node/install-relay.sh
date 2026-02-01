@@ -1,101 +1,101 @@
 #!/bin/bash
-# install-relay.sh - Version simplifiée pour users lambda
-# Usage: git clone https://github.com/cTHE0/zeta-network.git && cd zeta-network/rust-node && sudo bash install-relay.sh
+# Zeta Network - Installation Relais
+# Usage: git clone https://github.com/cTHE0/zeta-network.git && cd zeta-network/rust-node && sudo ./install-relay.sh
 
 set -e
+cd "$(dirname "$0")"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+echo "🚀 Installation Zeta Network Relay"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║      🚀 Installation Zeta Network Relay (Simple)          ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
-
-# Vérifier sudo
-if [ "$EUID" -ne 0 ]; then 
-    echo -e "${RED}❌ Nécessite sudo. Relancez avec : sudo bash install-relay.sh${NC}"
+# Vérifier root
+if [ "$EUID" -ne 0 ]; then
+    echo "❌ Lancez avec sudo : sudo ./install-relay.sh"
     exit 1
 fi
 
-# Vérifier qu'on est dans le bon dossier
-if [ ! -f "Cargo.toml" ] || [ ! -f "main.rs" ]; then
-    echo -e "${RED}❌ ERREUR: Ce script doit être exécuté depuis le dossier rust-node/${NC}"
-    echo "   Structure attendue:"
-    echo "   zeta-network/"
-    echo "   └── rust-node/"
-    echo "       ├── Cargo.toml  ← doit exister"
-    echo "       ├── main.rs     ← doit exister"
-    echo "       └── install-relay.sh"
-    exit 1
+INSTALL_DIR="/opt/zeta-relay"
+mkdir -p "$INSTALL_DIR"
+
+# Essayer de télécharger le binaire pré-compilé
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64) BINARY="zeta-relay-linux-x86_64" ;;
+    aarch64|arm64) BINARY="zeta-relay-linux-arm64" ;;
+    *) BINARY="" ;;
+esac
+
+DOWNLOADED=false
+if [ -n "$BINARY" ]; then
+    echo "📥 Téléchargement du binaire..."
+    if curl -fsSL "https://github.com/cTHE0/zeta-network/releases/latest/download/$BINARY" -o "$INSTALL_DIR/zeta-relay" 2>/dev/null; then
+        chmod +x "$INSTALL_DIR/zeta-relay"
+        DOWNLOADED=true
+        echo "✅ Binaire téléchargé"
+    fi
 fi
 
-# 1. Dépendances
-echo -e "${BLUE}📦 Installation dépendances...${NC}"
-apt-get update > /dev/null 2>&1 || true
-DEBIAN_FRONTEND=noninteractive apt-get install -y curl build-essential libssl-dev pkg-config > /dev/null 2>&1 || true
-
-# 2. Rust (si absent)
-if ! command -v cargo &> /dev/null; then
-    echo -e "${BLUE}⚙️  Installation Rust (1-2 min)...${NC}"
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal > /dev/null 2>&1
-    source "/root/.cargo/env" 2>/dev/null || source "$HOME/.cargo/env"
+# Si téléchargement échoué, compiler
+if [ "$DOWNLOADED" = false ]; then
+    echo "🔨 Compilation (première fois, ~2 min)..."
+    
+    # Installer Rust si nécessaire
+    if ! command -v cargo &> /dev/null; then
+        echo "📦 Installation de Rust..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source "$HOME/.cargo/env"
+    fi
+    
+    cargo build --release
+    cp target/release/zeta-relay "$INSTALL_DIR/"
+    echo "✅ Compilation terminée"
 fi
 
-# 3. Compilation
-echo -e "${BLUE}🔨 Compilation (5-10 min)...${NC}"
-cargo build --release --quiet || {
-    echo -e "${RED}❌ Échec compilation${NC}"
-    exit 1
-}
-
-# 4. Service systemd (pour persistance au reboot)
-echo -e "${BLUE}⚙️  Configuration systemd...${NC}"
-INSTALL_PATH="$(pwd)"
-
-cat > /etc/systemd/system/zeta-relay.service <<EOF
+# Service systemd
+echo "⚙️  Configuration du service..."
+cat > /etc/systemd/system/zeta-relay.service << 'SVCEOF'
 [Unit]
 Description=Zeta Network Relay
 After=network.target
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=$INSTALL_PATH
-ExecStart=$INSTALL_PATH/target/release/zeta-network --relay --name "Relay-\$(hostname)" --web-port 3030
+WorkingDirectory=/opt/zeta-relay
+ExecStart=/opt/zeta-relay/zeta-relay --relay --web-port 3030
 Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
+RestartSec=5
+Environment=RUST_LOG=info
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SVCEOF
 
 systemctl daemon-reload
-systemctl enable zeta-relay > /dev/null 2>&1
-systemctl start zeta-relay
+systemctl enable zeta-relay
+systemctl restart zeta-relay
 
-# 5. Résultat
-sleep 10
-PEER_ID=$(curl -s http://localhost:3030/api/network 2>/dev/null | grep -oP '"local_peer_id":"\K[^"]+' | head -1 || echo "en_attente")
-PUBLIC_IP=$(curl -s ifconfig.me 2>&1 || hostname -I | awk '{print $1}' | head -1)
+# Ouvrir les ports (UFW si présent)
+if command -v ufw &> /dev/null; then
+    ufw allow 4001/tcp >/dev/null 2>&1 || true
+    ufw allow 3030/tcp >/dev/null 2>&1 || true
+fi
 
-echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║              ✅ RELAIS OPÉRATIONNEL !                      ║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+sleep 3
+
+# Récupérer les infos
+IP=$(curl -s ifconfig.me 2>/dev/null || curl -s icanhazip.com 2>/dev/null || hostname -I | awk '{print $1}')
+PEER_ID=$(curl -s http://localhost:3030/api/network 2>/dev/null | grep -oP '"local_peer_id":"\K[^"]+' || echo "...")
+
 echo ""
-echo -e "${BLUE}🌐 Votre adresse bootstrap :${NC}"
-echo -e "${YELLOW}/ip4/${PUBLIC_IP}/tcp/4001/p2p/${PEER_ID}${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ RELAIS OPÉRATIONNEL !"
 echo ""
-echo -e "${BLUE}🌐 Interface web : http://${PUBLIC_IP}:3030${NC}"
+echo "📋 Adresse bootstrap (à partager) :"
+echo "   /ip4/$IP/tcp/4001/p2p/$PEER_ID"
 echo ""
-echo -e "${BLUE}📝 Pour gérer le service :${NC}"
-echo "   sudo systemctl start zeta-relay"
-echo "   sudo systemctl stop zeta-relay"
-echo "   sudo systemctl restart zeta-relay"
+echo "🌐 Interface web locale : http://$IP:3030"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📝 Commandes utiles :"
 echo "   sudo systemctl status zeta-relay"
-echo ""
-echo -e "${GREEN}🎉 Partagez votre adresse bootstrap avec d'autres utilisateurs !${NC}"
+echo "   sudo journalctl -u zeta-relay -f"

@@ -1,84 +1,44 @@
 #!/usr/bin/env python3
 """
-Zeta Network - Serveur Web PythonAnywhere
-Interface web pour le réseau social P2P décentralisé
+Zeta Network - Web Frontend (PythonAnywhere)
+Sert l'interface web qui se connecte aux relais P2P via WebSocket
 """
 
 import os
-import json
-from datetime import datetime
 from flask import Flask, render_template, jsonify
 
-# Créer l'application Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zeta-network-dev-key-change-in-production')
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zeta-dev-key')
 
-# Configuration - Relais publics
+# Liste des relais publics - METTEZ VOS RELAIS ICI
+# Après avoir lancé install-relay.sh sur un VPS, ajoutez son IP
 RELAYS = [
-    '/dns4/wrtc-star1.par.dwebops.pub/tcp/443/wss/p2p-webrtc-star',
-    '/dns4/wrtc-star2.sjc.dwebops.pub/tcp/443/wss/p2p-webrtc-star',
-    # Ajoutez vos relais Rust ici :
-    # '/ip4/VOTRE_VPS_IP/tcp/443/wss/p2p/VOTRE_PEER_ID'
+    # {"name": "EU 1", "ws": "ws://YOUR_VPS_IP:3030/ws", "api": "http://YOUR_VPS_IP:3030"},
 ]
 
 @app.route('/')
 def home():
-    """Page d'accueil"""
     return render_template('index.html')
 
 @app.route('/app')
 def p2p_app():
-    """Interface P2P complète"""
-    return render_template('app.html', relays=json.dumps(RELAYS))
+    return render_template('app.html')
 
 @app.route('/install')
 def install():
-    """Page d'installation"""
     return render_template('install.html')
 
-@app.route('/api/network-info')
-def network_info():
-    """API - Informations réseau"""
+@app.route('/api/relays')
+def get_relays():
+    return jsonify(RELAYS)
+
+@app.route('/api/info')
+def info():
     return jsonify({
-        'relays': RELAYS,
-        'topic': '/zeta2/social/v1',
-        'max_post_length': 280,
-        'version': '1.0.0'
+        'topic': 'zeta2-social',
+        'version': '2.0.0',
+        'relays': len(RELAYS)
     })
 
-@app.route('/api/stats')
-def stats():
-    """API - Statistiques"""
-    return jsonify({
-        'active_peers': 42,
-        'total_posts': 1289,
-        'online_relays': len(RELAYS),
-        'network_status': 'operational'
-    })
-
-@app.route('/health')
-def health():
-    """Health check"""
-    return jsonify({
-        'status': 'ok',
-        'timestamp': datetime.utcnow().isoformat(),
-        'service': 'zeta-network-web'
-    })
-
-@app.errorhandler(404)
-def not_found(e):
-    """Gestion 404"""
-    return render_template('index.html'), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    """Gestion 500"""
-    return jsonify({
-        'error': 'Internal server error',
-        'message': str(e)
-    }), 500
-
-# Pour le développement local uniquement
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

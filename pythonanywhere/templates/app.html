@@ -4,89 +4,434 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zeta Network • App</title>
-    <meta name="description" content="Réseau social P2P dans votre navigateur">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ζ</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: white;
+            min-height: 100vh;
+        }
+        .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+        
+        .header {
+            text-align: center;
+            padding: 1.5rem 0;
+            border-bottom: 1px solid #334155;
+        }
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            margin: 1rem 0;
+            background: #1e293b;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+        .status.connected { background: #064e3b; }
+        .status.error { background: #7f1d1d; }
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid #4b5563;
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .compose {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .compose input {
+            width: 100%;
+            background: #334155;
+            border: none;
+            padding: 0.7rem;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        .compose textarea {
+            width: 100%;
+            background: #334155;
+            border: none;
+            padding: 0.7rem;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            min-height: 80px;
+            resize: none;
+        }
+        .compose-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+        .char-count { color: #64748b; font-size: 0.85rem; }
+        .char-count.warning { color: #f59e0b; }
+        .char-count.error { color: #ef4444; }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #6366f1; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+        
+        .feed { margin: 1rem 0; }
+        .post {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .post-author { font-weight: 600; color: #a5b4fc; }
+        .post-time { color: #64748b; font-size: 0.85rem; }
+        .post-content { line-height: 1.5; word-wrap: break-word; }
+        
+        .relay-select {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .relay-select h3 { margin-bottom: 0.5rem; font-size: 1rem; }
+        .relay-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .relay-btn {
+            background: #334155;
+            border: 2px solid transparent;
+            padding: 0.7rem;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s;
+        }
+        .relay-btn:hover { border-color: #6366f1; }
+        .relay-btn.active { border-color: #10b981; background: #064e3b; }
+        
+        .info-box {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        .info-box p { color: #94a3b8; margin-bottom: 0.5rem; }
+        .info-box a { color: #8b5cf6; }
+        
+        .network-stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        .stat { text-align: center; }
+        .stat-value { font-weight: 700; color: white; font-size: 1.1rem; }
+        
+        .footer {
+            text-align: center;
+            padding: 1rem;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+        .footer a { color: #8b5cf6; text-decoration: none; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <header class="header">
             <div class="logo">ζ Zeta Network</div>
-            <p class="tagline">Réseau social décentralisé • 100% P2P</p>
-            
-            <div class="status-bar" id="status">
-                <div class="spinner"></div>
-                <span>Initialisation du nœud P2P...</span>
-            </div>
-            
-            <div class="network-info" id="networkInfo" style="display:none">
-                <div class="network-item">
-                    <span class="icon">🆔</span>
-                    <span>Votre ID : <strong id="peerIdShort">...</strong></span>
-                </div>
-                <div class="network-item">
-                    <span class="icon">👥</span>
-                    <span><strong id="peersCount">0</strong> pairs connectés</span>
-                </div>
-                <div class="network-item">
-                    <span class="icon">📡</span>
-                    <span><strong id="postsCount">0</strong> posts</span>
-                </div>
-            </div>
+        </header>
+        
+        <div id="status" class="status">
+            <div class="spinner"></div>
+            <span id="statusText">Chargement des relais...</span>
         </div>
-
-        <div class="app" id="app" style="display:none">
+        
+        <div id="networkStats" class="network-stats" style="display: none;">
+            <div class="stat"><div class="stat-value" id="peersCount">0</div>pairs</div>
+            <div class="stat"><div class="stat-value" id="postsCount">0</div>posts</div>
+        </div>
+        
+        <div id="relaySection" class="relay-select" style="display: none;">
+            <h3>📡 Choisissez un relais</h3>
+            <div id="relayList" class="relay-list"></div>
+        </div>
+        
+        <div id="noRelays" class="info-box" style="display: none;">
+            <p>⚠️ Aucun relais disponible</p>
+            <p>Le réseau a besoin de relais pour fonctionner.</p>
+            <p><a href="/install">Hébergez un relais</a> pour aider le réseau !</p>
+        </div>
+        
+        <div id="app" style="display: none;">
             <div class="compose">
-                <input type="text" id="authorName" class="name-input" placeholder="Votre nom (local uniquement)" maxlength="24">
-                <textarea id="postContent" placeholder="Partagez quelque chose..."></textarea>
-                <div class="actions">
-                    <button class="btn" id="publishBtn" disabled>📤 Publier</button>
-                    <div class="char-count" id="charCount">0/280</div>
+                <input type="text" id="authorName" placeholder="Votre pseudo" maxlength="20">
+                <textarea id="postContent" placeholder="Partagez quelque chose..." maxlength="280"></textarea>
+                <div class="compose-footer">
+                    <span id="charCount" class="char-count">0/280</span>
+                    <button id="publishBtn" class="btn btn-primary" disabled>Publier</button>
                 </div>
             </div>
-
-            <div class="feed" id="feed">
-                <!-- Posts apparaîtront ici -->
-            </div>
-
-            <div class="peers">
-                <div class="peers-title">Pairs connectés</div>
-                <div class="peers-list" id="peers">
-                    <div class="peer-badge">En attente...</div>
-                </div>
-            </div>
+            
+            <div id="feed" class="feed"></div>
         </div>
-
-        <div class="fallback" id="fallback" style="display:none">
-            <div class="fallback-icon">⚠️</div>
-            <h2>Connexion P2P impossible</h2>
-            <p class="fallback-text">
-                Votre navigateur ou réseau bloque les connexions peer-to-peer.<br>
-                Essayez avec un autre navigateur ou depuis un réseau différent.
-            </p>
-            <button class="btn" onclick="location.reload()">🔄 Réessayer</button>
-        </div>
-
-        <div class="footer">
-            <p>🔒 Vos données restent sur votre appareil • Pas de tracking</p>
-            <p>
-                <a href="https://github.com/CTHE0/zeta-network" target="_blank">Code source</a>
-                • 
-                <a href="/">Accueil</a>
-            </p>
-        </div>
+        
+        <footer class="footer">
+            <a href="/">Accueil</a> • <a href="https://github.com/cTHE0/zeta-network">GitHub</a>
+        </footer>
     </div>
 
     <script>
-        const CONFIG = {
-            topic: '/zeta2/social/v1',
-            maxPostLength: 280,
-            peerTimeout: 60000,
-            heartbeatInterval: 30000,
-            bootstrapRelays: {{ relays|safe }}
-        };
+        // === Configuration ===
+        let ws = null;
+        let connected = false;
+        let posts = [];
+        let currentRelay = null;
+        
+        // === Éléments DOM ===
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const relaySection = document.getElementById('relaySection');
+        const relayList = document.getElementById('relayList');
+        const noRelaysEl = document.getElementById('noRelays');
+        const appEl = document.getElementById('app');
+        const feedEl = document.getElementById('feed');
+        const networkStats = document.getElementById('networkStats');
+        const authorInput = document.getElementById('authorName');
+        const contentInput = document.getElementById('postContent');
+        const charCount = document.getElementById('charCount');
+        const publishBtn = document.getElementById('publishBtn');
+        
+        // Charger le pseudo sauvegardé
+        authorInput.value = localStorage.getItem('zeta_author') || '';
+        
+        // === Initialisation ===
+        async function init() {
+            try {
+                const res = await fetch('/api/relays');
+                const relays = await res.json();
+                
+                if (relays.length === 0) {
+                    statusEl.classList.add('error');
+                    statusText.textContent = '⚠️ Aucun relais configuré';
+                    noRelaysEl.style.display = 'block';
+                    return;
+                }
+                
+                // Afficher la liste des relais
+                statusEl.style.display = 'none';
+                relaySection.style.display = 'block';
+                
+                relays.forEach((relay, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'relay-btn';
+                    btn.innerHTML = `<strong>${relay.name}</strong><br><small>${relay.ws}</small>`;
+                    btn.onclick = () => connectToRelay(relay, btn);
+                    relayList.appendChild(btn);
+                });
+                
+                // Auto-connecter au premier relais
+                const firstBtn = relayList.querySelector('.relay-btn');
+                if (firstBtn) {
+                    connectToRelay(relays[0], firstBtn);
+                }
+                
+            } catch (err) {
+                statusEl.classList.add('error');
+                statusText.textContent = '❌ Erreur de chargement';
+                console.error(err);
+            }
+        }
+        
+        // === Connexion WebSocket ===
+        function connectToRelay(relay, btn) {
+            // Déconnecter l'ancien
+            if (ws) {
+                ws.close();
+            }
+            
+            // Mettre à jour UI
+            document.querySelectorAll('.relay-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentRelay = relay;
+            
+            statusEl.style.display = 'flex';
+            statusEl.className = 'status';
+            statusText.textContent = `Connexion à ${relay.name}...`;
+            
+            try {
+                ws = new WebSocket(relay.ws);
+                
+                ws.onopen = () => {
+                    connected = true;
+                    statusEl.classList.add('connected');
+                    statusText.innerHTML = `✅ Connecté à <strong>${relay.name}</strong>`;
+                    appEl.style.display = 'block';
+                    networkStats.style.display = 'flex';
+                    updatePublishBtn();
+                };
+                
+                ws.onmessage = (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                        handleMessage(msg);
+                    } catch (err) {
+                        console.error('Parse error:', err);
+                    }
+                };
+                
+                ws.onclose = () => {
+                    connected = false;
+                    statusEl.className = 'status error';
+                    statusText.textContent = '❌ Déconnecté';
+                    publishBtn.disabled = true;
+                };
+                
+                ws.onerror = () => {
+                    statusEl.className = 'status error';
+                    statusText.textContent = `❌ Erreur connexion ${relay.name}`;
+                };
+                
+            } catch (err) {
+                statusEl.className = 'status error';
+                statusText.textContent = '❌ WebSocket non supporté';
+            }
+        }
+        
+        // === Messages ===
+        function handleMessage(msg) {
+            // Format du relais Rust: {"type": "new_post", "post": {...}}
+            // Ou format navigateur: {"type": "post", "data": {...}}
+            if (msg.type === 'new_post' && msg.post) {
+                addPost(msg.post);
+            } else if (msg.type === 'post' && msg.data) {
+                addPost(msg.data);
+            } else if (msg.type === 'init') {
+                // État initial du relais
+                if (msg.posts) {
+                    msg.posts.forEach(p => addPost(p));
+                }
+                if (msg.peers) {
+                    document.getElementById('peersCount').textContent = msg.peers.length;
+                }
+            } else if (msg.type === 'peer_joined' || msg.type === 'peer_left') {
+                // Mettre à jour le compteur (on pourrait demander au relais)
+            }
+        }
+        
+        function addPost(post) {
+            // Éviter doublons
+            if (posts.find(p => p.id === post.id)) return;
+            
+            posts.unshift(post);
+            document.getElementById('postsCount').textContent = posts.length;
+            
+            const el = document.createElement('div');
+            el.className = 'post';
+            el.innerHTML = `
+                <div class="post-header">
+                    <span class="post-author">${escapeHtml(post.author || 'Anonyme')}</span>
+                    <span class="post-time">${formatTime(post.timestamp)}</span>
+                </div>
+                <div class="post-content">${escapeHtml(post.content)}</div>
+            `;
+            
+            feedEl.insertBefore(el, feedEl.firstChild);
+        }
+        
+        // === Publication ===
+        contentInput.addEventListener('input', () => {
+            const len = contentInput.value.length;
+            charCount.textContent = `${len}/280`;
+            charCount.className = 'char-count' + (len > 250 ? (len > 280 ? ' error' : ' warning') : '');
+            updatePublishBtn();
+        });
+        
+        authorInput.addEventListener('input', () => {
+            localStorage.setItem('zeta_author', authorInput.value);
+        });
+        
+        function updatePublishBtn() {
+            const content = contentInput.value.trim();
+            publishBtn.disabled = !connected || content.length === 0 || content.length > 280;
+        }
+        
+        publishBtn.addEventListener('click', () => {
+            if (!connected || !ws) return;
+            
+            const content = contentInput.value.trim();
+            if (!content || content.length > 280) return;
+            
+            // Format compatible avec le relais Rust
+            const post = {
+                type: 'post',
+                data: {
+                    id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2),
+                    author: authorInput.value.trim() || 'Anonyme',
+                    content: content,
+                    timestamp: Date.now()
+                }
+            };
+            
+            ws.send(JSON.stringify(post));
+            // On n'ajoute pas localement - on attend le broadcast du relais
+            contentInput.value = '';
+            charCount.textContent = '0/280';
+            charCount.className = 'char-count';
+            updatePublishBtn();
+        });
+        
+        // === Utilitaires ===
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatTime(ts) {
+            const d = new Date(ts);
+            const now = new Date();
+            const diff = (now - d) / 1000;
+            
+            if (diff < 60) return 'à l\'instant';
+            if (diff < 3600) return `il y a ${Math.floor(diff/60)}min`;
+            if (diff < 86400) return `il y a ${Math.floor(diff/3600)}h`;
+            return d.toLocaleDateString('fr-FR');
+        }
+        
+        // Démarrer
+        init();
     </script>
-    <script src="{{ url_for('static', filename='js/ipfs-client.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

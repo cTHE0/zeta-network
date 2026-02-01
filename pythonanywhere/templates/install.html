@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeta Network • Installer un relais</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ζ</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        
+        h1 {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+        
+        .step {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: #6366f1;
+            border-radius: 50%;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+        .step h3 {
+            display: inline;
+            font-size: 1.1rem;
+        }
+        .step p {
+            color: #94a3b8;
+            margin: 0.75rem 0;
+        }
+        
+        .code {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            position: relative;
+        }
+        .code-line {
+            display: block;
+            color: #e2e8f0;
+        }
+        .code-comment {
+            color: #64748b;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #334155;
+            border: none;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .copy-btn:hover { background: #475569; }
+        
+        .requirements {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .requirements h2 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        .requirements ul {
+            list-style: none;
+            color: #94a3b8;
+        }
+        .requirements li {
+            padding: 0.3rem 0;
+        }
+        .requirements li::before {
+            content: '✓ ';
+            color: #10b981;
+        }
+        
+        .info-box {
+            background: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+            border-radius: 0 8px 8px 0;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .info-box strong { color: #60a5fa; }
+        
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        .footer a { color: #8b5cf6; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📡 Héberger un relais</h1>
+        <p class="subtitle">Aidez le réseau en 2 commandes</p>
+        
+        <div class="requirements">
+            <h2>Prérequis</h2>
+            <ul>
+                <li>Un VPS Linux (Ubuntu/Debian) - à partir de 5€/mois</li>
+                <li>Ports 4001 et 3030 ouverts</li>
+                <li>Rien d'autre ! Le script installe tout</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <span class="step-number">1</span>
+            <h3>Cloner le projet</h3>
+            <p>Connectez-vous à votre VPS et clonez le repo :</p>
+            <div class="code">
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+                <span class="code-line">git clone https://github.com/cTHE0/zeta-network.git</span>
+            </div>
+        </div>
+        
+        <div class="step">
+            <span class="step-number">2</span>
+            <h3>Lancer l'installation</h3>
+            <p>Exécutez le script d'installation :</p>
+            <div class="code">
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+                <span class="code-line">cd zeta-network/rust-node</span>
+                <span class="code-line">sudo ./install-relay.sh</span>
+            </div>
+        </div>
+        
+        <div class="step">
+            <span class="step-number">✓</span>
+            <h3>C'est tout !</h3>
+            <p>Le script télécharge le binaire (ou compile si nécessaire) et démarre le relais automatiquement.</p>
+            <p>À la fin, vous verrez votre adresse bootstrap à partager.</p>
+        </div>
+        
+        <div class="info-box">
+            <strong>💡 Astuce :</strong> Le relais sera accessible sur <code>http://VOTRE_IP:3030</code>. Partagez cette adresse pour que d'autres puissent s'y connecter !
+        </div>
+        
+        <div class="step">
+            <h3>Commandes utiles</h3>
+            <div class="code">
+                <span class="code-line code-comment"># Voir l'état du relais</span>
+                <span class="code-line">sudo systemctl status zeta-relay</span>
+                <span class="code-line"></span>
+                <span class="code-line code-comment"># Voir les logs en temps réel</span>
+                <span class="code-line">sudo journalctl -u zeta-relay -f</span>
+                <span class="code-line"></span>
+                <span class="code-line code-comment"># Redémarrer le relais</span>
+                <span class="code-line">sudo systemctl restart zeta-relay</span>
+            </div>
+        </div>
+        
+        <footer class="footer">
+            <p><a href="/">← Retour à l'accueil</a></p>
+            <p style="margin-top: 0.5rem">
+                <a href="https://github.com/cTHE0/zeta-network">Code source</a>
+            </p>
+        </footer>
+    </div>
+    
+    <script>
+        function copyCode(btn) {
+            const code = btn.parentElement.querySelectorAll('.code-line:not(.code-comment)');
+            const text = Array.from(code).map(el => el.textContent).join('\n');
+            navigator.clipboard.writeText(text);
+            btn.textContent = 'Copié !';
+            setTimeout(() => btn.textContent = 'Copier', 2000);
+        }
+    </script>
+</body>
+</html>

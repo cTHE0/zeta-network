@@ -1,0 +1,22 @@
+# Rust
+target/
+Cargo.lock
+
+# Clés locales
+identity.key
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

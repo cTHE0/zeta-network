@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ζ Zeta Network</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --dark: #0f172a;
+            --dark-800: #1e293b;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: white;
+            min-height: 100vh;
+        }
+        .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+        .header {
+            text-align: center;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--dark-800);
+        }
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--dark-800);
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--gray);
+        }
+        .status-dot.online { background: var(--success); }
+        .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .info { display: flex; gap: 1rem; justify-content: center; margin-top: 0.5rem; font-size: 0.85rem; color: var(--gray); }
+        
+        .compose {
+            background: var(--dark-800);
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .compose input, .compose textarea {
+            width: 100%;
+            background: var(--dark);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: white;
+            font-size: 1rem;
+            resize: none;
+        }
+        .compose input { margin-bottom: 0.5rem; }
+        .compose textarea { min-height: 80px; }
+        .compose-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
+        .btn {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .char-count { color: var(--gray); font-size: 0.85rem; }
+        .char-count.warning { color: #f59e0b; }
+        .char-count.danger { color: var(--error); }
+        
+        .feed { margin-top: 1rem; }
+        .post {
+            background: var(--dark-800);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .post-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .post-author { font-weight: 600; color: var(--primary); }
+        .post-time { color: var(--gray); font-size: 0.85rem; }
+        .post-content { line-height: 1.5; word-wrap: break-word; }
+        
+        .peers {
+            background: var(--dark-800);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .peers-title { font-size: 0.9rem; color: var(--gray); margin-bottom: 0.5rem; }
+        .peers-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .peer-badge {
+            background: var(--dark);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+        .peer-badge.browser { border: 1px solid var(--secondary); color: var(--secondary); }
+        
+        .empty { text-align: center; padding: 2rem; color: var(--gray); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ζ Zeta Network</div>
+            <div class="status" id="status">
+                <div class="status-dot connecting"></div>
+                <span>Connexion...</span>
+            </div>
+            <div class="info">
+                <span>🆔 <span id="peerId">...</span></span>
+                <span>👥 <span id="peersCount">0</span> pairs</span>
+            </div>
+        </div>
+
+        <div class="compose">
+            <input type="text" id="authorName" placeholder="Votre nom" maxlength="24">
+            <textarea id="postContent" placeholder="Quoi de neuf ?" maxlength="280"></textarea>
+            <div class="compose-actions">
+                <span class="char-count" id="charCount">0/280</span>
+                <button class="btn" id="publishBtn" disabled>Publier</button>
+            </div>
+        </div>
+
+        <div class="feed" id="feed">
+            <div class="empty">Aucun message pour l'instant</div>
+        </div>
+
+        <div class="peers">
+            <div class="peers-title">Pairs connectés</div>
+            <div class="peers-list" id="peersList">
+                <div class="peer-badge">En attente...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const elements = {
+            status: document.getElementById('status'),
+            peerId: document.getElementById('peerId'),
+            peersCount: document.getElementById('peersCount'),
+            authorName: document.getElementById('authorName'),
+            postContent: document.getElementById('postContent'),
+            charCount: document.getElementById('charCount'),
+            publishBtn: document.getElementById('publishBtn'),
+            feed: document.getElementById('feed'),
+            peersList: document.getElementById('peersList')
+        };
+
+        let ws = null;
+        let myPeerId = '';
+        let posts = [];
+        let peers = [];
+
+        // Charger le nom sauvegardé
+        elements.authorName.value = localStorage.getItem('zeta_author_name') || '';
+
+        function connect() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+            ws.onopen = () => {
+                updateStatus('Connecté', 'online');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+
+            ws.onclose = () => {
+                updateStatus('Déconnecté', 'connecting');
+                setTimeout(connect, 3000);
+            };
+
+            ws.onerror = () => {
+                updateStatus('Erreur', 'connecting');
+            };
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'init':
+                    myPeerId = data.peer_id;
+                    elements.peerId.textContent = myPeerId.substring(0, 12) + '...';
+                    posts = data.posts || [];
+                    peers = data.peers || [];
+                    renderPosts();
+                    renderPeers();
+                    break;
+                case 'new_post':
+                    if (!posts.find(p => p.id === data.post.id)) {
+                        posts.unshift(data.post);
+                        if (posts.length > 100) posts.pop();
+                        renderPosts();
+                    }
+                    break;
+                case 'peer_joined':
+                    if (!peers.find(p => p.peer_id === data.peer_id)) {
+                        peers.push({ peer_id: data.peer_id });
+                        renderPeers();
+                    }
+                    break;
+                case 'peer_left':
+                    peers = peers.filter(p => p.peer_id !== data.peer_id);
+                    renderPeers();
+                    break;
+            }
+        }
+
+        function updateStatus(text, state) {
+            const dot = elements.status.querySelector('.status-dot');
+            dot.className = `status-dot ${state}`;
+            elements.status.querySelector('span').textContent = text;
+        }
+
+        function renderPosts() {
+            if (posts.length === 0) {
+                elements.feed.innerHTML = '<div class="empty">Aucun message pour l\'instant</div>';
+                return;
+            }
+            elements.feed.innerHTML = posts.map(post => `
+                <div class="post">
+                    <div class="post-header">
+                        <span class="post-author">${escapeHtml(post.author_name)}</span>
+                        <span class="post-time">${formatTime(post.timestamp)}</span>
+                    </div>
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderPeers() {
+            elements.peersCount.textContent = peers.length;
+            if (peers.length === 0) {
+                elements.peersList.innerHTML = '<div class="peer-badge">En attente...</div>';
+                return;
+            }
+            elements.peersList.innerHTML = peers.map(p => {
+                const isBrowser = p.is_browser || p.peer_id?.startsWith('browser-');
+                const shortId = p.peer_id?.substring(0, 8) || '?';
+                return `<div class="peer-badge ${isBrowser ? 'browser' : ''}">${shortId}</div>`;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function updateCharCount() {
+            const len = elements.postContent.value.length;
+            elements.charCount.textContent = `${len}/280`;
+            elements.charCount.className = 'char-count' + (len > 250 ? (len > 280 ? ' danger' : ' warning') : '');
+            elements.publishBtn.disabled = len === 0 || len > 280 || !ws || ws.readyState !== WebSocket.OPEN;
+        }
+
+        function publish() {
+            const content = elements.postContent.value.trim();
+            const authorName = elements.authorName.value.trim() || 'Anonyme';
+            
+            if (!content || content.length > 280) return;
+            
+            localStorage.setItem('zeta_author_name', authorName);
+            
+            ws.send(JSON.stringify({
+                type: 'post',
+                content: content,
+                author_name: authorName
+            }));
+            
+            elements.postContent.value = '';
+            updateCharCount();
+        }
+
+        elements.postContent.addEventListener('input', updateCharCount);
+        elements.publishBtn.addEventListener('click', publish);
+        elements.postContent.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                publish();
+            }
+        });
+
+        connect();
+    </script>
+</body>
+</html>
