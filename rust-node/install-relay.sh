@@ -17,6 +17,9 @@ fi
 INSTALL_DIR="/opt/zeta-relay"
 mkdir -p "$INSTALL_DIR"
 
+# Arrêter les services existants si présents
+systemctl stop zeta-relay zeta-tunnel 2>/dev/null || true
+
 # === 1. INSTALLER LE BINAIRE ZETA ===
 echo ""
 echo "📦 Étape 1/3 : Installation du relais..."
