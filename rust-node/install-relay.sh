@@ -22,6 +22,12 @@ mkdir -p "$INSTALL_DIR"
 systemctl stop zeta-relay 2>/dev/null || true
 sleep 1
 
+# === COPIER BOOTSTRAP.TXT ===
+if [ -f "bootstrap.txt" ]; then
+    cp bootstrap.txt "$INSTALL_DIR/bootstrap.txt"
+    echo "📋 bootstrap.txt copié"
+fi
+
 # === BINAIRE ===
 echo "📦 Installation du relais..."
 

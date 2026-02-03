@@ -195,16 +195,34 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Écouter
     if is_relay {
-        swarm.listen_on("/ip4/0.0.0.0/tcp/4001".parse()?)?;
-        info!("🖥️ Mode RELAY - Écoute sur 0.0.0.0:4001");
+        match swarm.listen_on("/ip4/0.0.0.0/tcp/4001".parse()?) {
+            Ok(_) => info!("🖥️ Mode RELAY - Écoute sur 0.0.0.0:4001"),
+            Err(e) => {
+                error!("❌ Impossible d'écouter sur le port 4001: {}", e);
+                error!("   Le port est peut-être déjà utilisé. Vérifiez avec: sudo lsof -i :4001");
+                return Err(e.into());
+            }
+        }
     } else {
         swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
         info!("💻 Mode CLIENT - Port aléatoire");
     }
 
+    // Obtenir l'IP locale pour éviter de se connecter à soi-même
+    let local_ip = get_local_ip();
+    info!("📍 IP locale détectée: {}", local_ip.as_deref().unwrap_or("inconnue"));
+
     // Bootstrap peers - connexion sans Peer ID requis
     let bootstrap_addrs = load_bootstrap_addrs();
     for addr in &bootstrap_addrs {
+        // Éviter de se connecter à soi-même
+        let addr_str = addr.to_string();
+        if let Some(ref lip) = local_ip {
+            if addr_str.contains(lip) {
+                info!("⏭️ Ignore bootstrap (c'est nous): {}", addr);
+                continue;
+            }
+        }
         info!("🔗 Connexion au bootstrap: {}", addr);
         if let Err(e) = swarm.dial(addr.clone()) {
             warn!("⚠️ Échec connexion bootstrap: {}", e);
@@ -227,10 +245,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("🌐 Interface web: http://localhost:{}", web_port);
     info!("🎉 Zeta Network prêt!");
+    info!("📋 Bootstrap configurés: {:?}", bootstrap_addrs.iter().map(|a| a.to_string()).collect::<Vec<_>>());
 
-    // Intervalle de reconnexion plus long (60s) pour éviter le spam
-    let mut reconnect_interval = tokio::time::interval(Duration::from_secs(60));
+    // Intervalle de reconnexion (30s) pour maintenir le mesh actif
+    let mut reconnect_interval = tokio::time::interval(Duration::from_secs(30));
     let bootstrap_clone = bootstrap_addrs.clone();
+    let local_ip_clone = local_ip.clone();
     
     // Tracker les peers connectés
     let mut connected_peers: std::collections::HashSet<PeerId> = std::collections::HashSet::new();
@@ -240,30 +260,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         tokio::select! {
             _ = reconnect_interval.tick() => {
-                // Ne reconnecter que si on n'a pas de peers
-                if connected_peers.is_empty() {
-                    info!("🔄 Aucun peer connecté, tentative de reconnexion...");
-                    for addr in &bootstrap_clone {
-                        info!("  → Dial {}", addr);
-                        let _ = swarm.dial(addr.clone());
+                info!("📊 Status: {} peer(s) connecté(s)", connected_peers.len());
+                
+                // Toujours essayer de maintenir les connexions aux bootstrap
+                for addr in &bootstrap_clone {
+                    let addr_str = addr.to_string();
+                    // Éviter de se connecter à soi-même
+                    if let Some(ref lip) = local_ip_clone {
+                        if addr_str.contains(lip) {
+                            continue;
+                        }
                     }
-                } else {
-                    info!("📊 {} peer(s) connecté(s), Gossipsub OK", connected_peers.len());
+                    // Dial même si déjà connecté - libp2p gère les doublons
+                    let _ = swarm.dial(addr.clone());
                 }
             }
 
             Some(msg) = ws_to_p2p_rx.recv() => {
                 if let Ok(json) = serde_json::to_vec(&msg) {
-                    // Publier sur Gossipsub (même si pas de peers, on log juste)
+                    // Log le nombre de peers dans le mesh pour ce topic
+                    let mesh_peers = swarm.behaviour().gossipsub.mesh_peers(&topic.hash()).count();
+                    info!("📊 Mesh peers pour {}: {}", TOPIC, mesh_peers);
+                    
+                    // Publier sur Gossipsub
                     match swarm.behaviour_mut().gossipsub.publish(topic.clone(), json) {
                         Ok(_) => {
                             if let NetworkMessage::Post(ref p) = msg {
-                                info!("📤 Post propagé sur Gossipsub: {}", p.content);
+                                info!("📤 Post propagé sur Gossipsub ({} mesh peers): {}", mesh_peers, p.content);
                             }
                         }
                         Err(e) => {
-                            // InsufficientPeers est normal au démarrage
-                            warn!("⚠️ Gossipsub publish: {:?}", e);
+                            warn!("⚠️ Gossipsub publish ({} mesh peers): {:?}", mesh_peers, e);
                         }
                     }
                     // Note: add_post déjà appelé dans web_server.rs, pas besoin ici
@@ -273,9 +300,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some(post) = post_rx.recv() => {
                 let msg = NetworkMessage::Post(post.clone());
                 if let Ok(json) = serde_json::to_vec(&msg) {
+                    let mesh_peers = swarm.behaviour().gossipsub.mesh_peers(&topic.hash()).count();
                     match swarm.behaviour_mut().gossipsub.publish(topic.clone(), json) {
-                        Ok(_) => info!("📤 Post publié via REST: {}", post.content),
-                        Err(e) => warn!("⚠️ Gossipsub publish: {:?}", e),
+                        Ok(_) => info!("📤 Post publié via REST ({} mesh peers): {}", mesh_peers, post.content),
+                        Err(e) => warn!("⚠️ Gossipsub publish ({} mesh peers): {:?}", mesh_peers, e),
                     }
                     // Toujours ajouter localement même si Gossipsub échoue
                     network_state.add_post(post).await;
@@ -419,4 +447,38 @@ fn load_bootstrap_addrs() -> Vec<Multiaddr> {
     }
 
     addrs
+}
+
+/// Obtenir l'IP publique du serveur
+fn get_local_ip() -> Option<String> {
+    // Essayer de récupérer l'IP publique
+    if let Ok(output) = std::process::Command::new("curl")
+        .args(["-s", "--max-time", "3", "ifconfig.me"])
+        .output()
+    {
+        if output.status.success() {
+            if let Ok(ip) = String::from_utf8(output.stdout) {
+                let ip = ip.trim().to_string();
+                if !ip.is_empty() {
+                    return Some(ip);
+                }
+            }
+        }
+    }
+    
+    // Fallback: utiliser hostname
+    if let Ok(output) = std::process::Command::new("hostname")
+        .arg("-I")
+        .output()
+    {
+        if output.status.success() {
+            if let Ok(ips) = String::from_utf8(output.stdout) {
+                if let Some(ip) = ips.split_whitespace().next() {
+                    return Some(ip.to_string());
+                }
+            }
+        }
+    }
+    
+    None
 }
