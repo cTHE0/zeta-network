@@ -1,5 +1,5 @@
 #!/bin/bash
-# Zeta Network - Installation Relais
+# Zeta Network - Installation/Mise à jour Relais
 # Usage: sudo ./install-relay.sh
 
 set -e
@@ -18,39 +18,56 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-mkdir -p "$INSTALL_DIR"
+# Stopper le service si existant
 systemctl stop zeta-relay 2>/dev/null || true
 sleep 1
 
-# === COPIER BOOTSTRAP.TXT ===
+# === INSTALLER RUST SI NÉCESSAIRE ===
+if ! command -v cargo &>/dev/null; then
+    echo "📦 Installation de Rust..."
+    sudo -u $(logname) bash -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+    source /home/$(logname)/.cargo/env
+    export PATH="/home/$(logname)/.cargo/bin:$PATH"
+fi
+
+# Charger cargo pour l'utilisateur actuel
+CARGO_PATH="/home/$(logname)/.cargo/bin/cargo"
+if [ ! -f "$CARGO_PATH" ]; then
+    CARGO_PATH=$(which cargo 2>/dev/null || echo "")
+fi
+
+if [ -z "$CARGO_PATH" ] || [ ! -f "$CARGO_PATH" ]; then
+    echo "❌ Cargo non trouvé. Installez Rust manuellement:"
+    echo "   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    exit 1
+fi
+
+# === COMPILER ===
+echo "🔨 Compilation du relais..."
+sudo -u $(logname) bash -c "cd $(pwd) && $CARGO_PATH build --release"
+
+if [ ! -f "target/release/zeta-relay" ]; then
+    echo "❌ Erreur de compilation"
+    exit 1
+fi
+echo "   ✅ Compilation réussie"
+
+# === INSTALLER ===
+echo ""
+echo "📦 Installation..."
+mkdir -p "$INSTALL_DIR"
+
+cp target/release/zeta-relay "$INSTALL_DIR/"
+chmod +x "$INSTALL_DIR/zeta-relay"
+echo "   ✅ Binaire installé"
+
+# Copier bootstrap.txt
 if [ -f "bootstrap.txt" ]; then
     cp bootstrap.txt "$INSTALL_DIR/bootstrap.txt"
-    echo "📋 bootstrap.txt copié"
+    echo "   ✅ bootstrap.txt copié"
 fi
 
-# === BINAIRE ===
-echo "📦 Installation du relais..."
-
-ARCH=$(uname -m)
-case "$ARCH" in
-    x86_64) BIN_URL="zeta-relay-linux-x86_64" ;;
-    aarch64|arm64) BIN_URL="zeta-relay-linux-arm64" ;;
-    *) BIN_URL="" ;;
-esac
-
-if [ -n "$BIN_URL" ]; then
-    curl -fsSL "https://github.com/cTHE0/zeta-network/releases/latest/download/$BIN_URL" -o "$INSTALL_DIR/zeta-relay" 2>/dev/null && chmod +x "$INSTALL_DIR/zeta-relay" && echo "   ✅ Téléchargé" || {
-        echo "   🔨 Compilation..."
-        command -v cargo &>/dev/null || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source "$HOME/.cargo/env"; }
-        cargo build --release && cp target/release/zeta-relay "$INSTALL_DIR/" && echo "   ✅ Compilé"
-    }
-else
-    echo "   🔨 Compilation..."
-    command -v cargo &>/dev/null || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source "$HOME/.cargo/env"; }
-    cargo build --release && cp target/release/zeta-relay "$INSTALL_DIR/"
-fi
-
-# === SERVICE ===
+# === SERVICE SYSTEMD ===
 echo ""
 echo "⚙️  Configuration du service..."
 
@@ -58,38 +75,51 @@ cat > /etc/systemd/system/zeta-relay.service << 'SERVICEEOF'
 [Unit]
 Description=Zeta Network Relay
 After=network.target
+
 [Service]
 Type=simple
 WorkingDirectory=/opt/zeta-relay
 ExecStart=/opt/zeta-relay/zeta-relay --relay --web-port 3030
 Restart=always
-RestartSec=3
+RestartSec=5
 Environment=RUST_LOG=info
+
 [Install]
 WantedBy=multi-user.target
 SERVICEEOF
 
-command -v ufw &>/dev/null && { ufw allow 3030/tcp &>/dev/null; ufw allow 4001/tcp &>/dev/null; } || true
+# === FIREWALL ===
+if command -v ufw &>/dev/null; then
+    ufw allow 3030/tcp &>/dev/null || true
+    ufw allow 4001/tcp &>/dev/null || true
+    echo "   ✅ Ports ouverts (3030, 4001)"
+fi
 
+# === DÉMARRER ===
 systemctl daemon-reload
 systemctl enable zeta-relay
 systemctl start zeta-relay
 
+echo "   ✅ Service démarré"
+
 sleep 2
 
 # === RÉSULTAT ===
-IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 
 echo ""
-echo "===================================="
-echo "✅ RELAIS ZETA INSTALLÉ !"
-echo "===================================="
+echo "════════════════════════════════════════════"
+echo "✅ RELAIS ZETA INSTALLÉ ET DÉMARRÉ !"
+echo "════════════════════════════════════════════"
 echo ""
 echo "🌍 Interface web : http://$IP:3030"
-echo ""
-echo "Partagez cette URL pour que d'autres se connectent !"
+echo "🔗 P2P port      : $IP:4001"
 echo ""
 echo "📋 Commandes utiles :"
-echo "   systemctl status zeta-relay"
-echo "   journalctl -u zeta-relay -f"
+echo "   sudo systemctl status zeta-relay"
+echo "   sudo journalctl -u zeta-relay -f"
+echo ""
+echo "🔄 Pour mettre à jour :"
+echo "   cd ~/zeta-network && git pull"
+echo "   cd rust-node && sudo ./install-relay.sh"
 echo ""
