@@ -166,9 +166,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let gossipsub_config = gossipsub::ConfigBuilder::default()
         .heartbeat_interval(Duration::from_secs(5))  // Heartbeat plus fréquent
         .validation_mode(gossipsub::ValidationMode::Permissive)
-        .mesh_n_low(1)           // Minimum 1 peer dans le mesh
-        .mesh_n(2)               // Cible 2 peers
-        .mesh_n_high(4)          // Maximum 4 peers
+        .mesh_n_low(2)           // Minimum 2 peers dans le mesh
+        .mesh_n(3)               // Cible 3 peers
+        .mesh_n_high(6)          // Maximum 6 peers
+        .mesh_outbound_min(1)    // Minimum 1 connexion sortante
         .gossip_lazy(3)          // Gossip à 3 peers
         .history_length(5)       // Garder 5 heartbeats d'historique
         .history_gossip(3)       // Gossip les 3 derniers
