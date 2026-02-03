@@ -162,10 +162,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .multiplex(yamux::Config::default())
         .boxed();
 
-    // Gossipsub
+    // Gossipsub - configuration optimisée pour relais distants
     let gossipsub_config = gossipsub::ConfigBuilder::default()
-        .heartbeat_interval(Duration::from_secs(10))
+        .heartbeat_interval(Duration::from_secs(5))  // Heartbeat plus fréquent
         .validation_mode(gossipsub::ValidationMode::Permissive)
+        .mesh_n_low(1)           // Minimum 1 peer dans le mesh
+        .mesh_n(2)               // Cible 2 peers
+        .mesh_n_high(4)          // Maximum 4 peers
+        .gossip_lazy(3)          // Gossip à 3 peers
+        .history_length(5)       // Garder 5 heartbeats d'historique
+        .history_gossip(3)       // Gossip les 3 derniers
+        .duplicate_cache_time(Duration::from_secs(60))  // Cache de déduplication
         .build()
         .expect("Config Gossipsub valide");
 
@@ -176,6 +183,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let topic = IdentTopic::new(TOPIC);
     gossipsub.subscribe(&topic).unwrap();
+    info!("📢 Abonné au topic: {}", TOPIC);
 
     // mDNS
     let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), local_peer_id)?;
@@ -220,17 +228,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("🌐 Interface web: http://localhost:{}", web_port);
     info!("🎉 Zeta Network prêt!");
 
-    let mut reconnect_interval = tokio::time::interval(Duration::from_secs(30));
+    // Intervalle de reconnexion plus long (60s) pour éviter le spam
+    let mut reconnect_interval = tokio::time::interval(Duration::from_secs(60));
     let bootstrap_clone = bootstrap_addrs.clone();
+    
+    // Tracker les peers connectés
+    let mut connected_peers: std::collections::HashSet<PeerId> = std::collections::HashSet::new();
 
     use futures::StreamExt;
     
     loop {
         tokio::select! {
             _ = reconnect_interval.tick() => {
-                for addr in &bootstrap_clone {
-                    info!("🔄 Tentative reconnexion à {}...", addr);
-                    let _ = swarm.dial(addr.clone());
+                // Ne reconnecter que si on n'a pas de peers
+                if connected_peers.is_empty() {
+                    info!("🔄 Aucun peer connecté, tentative de reconnexion...");
+                    for addr in &bootstrap_clone {
+                        info!("  → Dial {}", addr);
+                        let _ = swarm.dial(addr.clone());
+                    }
+                } else {
+                    info!("📊 {} peer(s) connecté(s), Gossipsub OK", connected_peers.len());
                 }
             }
 
@@ -316,20 +334,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
 
-                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                        info!("✅ Connecté: {}", peer_id);
+                    SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+                        info!("✅ Connecté à {}", peer_id);
+                        info!("   Endpoint: {:?}", endpoint);
+                        connected_peers.insert(peer_id);
                         swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                         network_state.add_peer(PeerInfo {
                             peer_id: peer_id.to_string(),
-                            address: String::new(),
+                            address: format!("{:?}", endpoint),
                             name: None,
                             is_browser: false,
                         }).await;
+                        info!("📊 Total peers connectés: {}", connected_peers.len());
                     }
 
-                    SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                        info!("❌ Déconnecté: {}", peer_id);
+                    SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                        info!("❌ Déconnecté de {}", peer_id);
+                        if let Some(err) = cause {
+                            info!("   Cause: {}", err);
+                        }
+                        connected_peers.remove(&peer_id);
                         network_state.remove_peer(&peer_id.to_string()).await;
+                        info!("📊 Total peers connectés: {}", connected_peers.len());
+                    }
+                    
+                    SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                        if let Some(pid) = peer_id {
+                            warn!("⚠️ Erreur connexion sortante vers {}: {}", pid, error);
+                        } else {
+                            warn!("⚠️ Erreur connexion sortante: {}", error);
+                        }
+                    }
+                    
+                    SwarmEvent::IncomingConnectionError { error, .. } => {
+                        warn!("⚠️ Erreur connexion entrante: {}", error);
                     }
 
                     _ => {}
